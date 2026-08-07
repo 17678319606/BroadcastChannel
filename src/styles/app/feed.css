@@ -10,18 +10,31 @@
   }
 
   .post-entry {
-    margin-bottom: 2.75rem;
-    padding-bottom: 2.75rem;
-    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 1.5rem;
+    padding: 1.6rem 1.75rem 1.4rem;
+    border: 1px solid var(--card-border);
+    border-radius: var(--card-radius);
+    background: var(--card-bg);
+    box-shadow: var(--card-shadow);
+    transition:
+      box-shadow 0.18s ease,
+      border-color 0.18s ease,
+      transform 0.18s ease;
+  }
+
+  .post-entry:hover {
+    box-shadow: var(--card-shadow-hover);
+    border-color: color-mix(in srgb, var(--link-color) 38%, var(--card-border));
+    transform: translateY(-2px);
   }
 
   .posts-feed > li:last-child .post-entry {
-    margin-bottom: 0;
+    margin-bottom: 1.5rem;
   }
 
   /* A single detail post should not show a trailing divider. */
   body.post .posts-feed > li:only-child .post-entry {
-    border-bottom: 0;
+    margin-bottom: 0;
   }
 
   .post-meta {
@@ -46,6 +59,33 @@
     text-decoration: underline;
   }
 
+  /* Clickable post title — only rendered when the post had a clean heading-style
+     first line (titleSplit), so the body never duplicates it. */
+  .post-title {
+    margin: 0.1rem 0 0.7rem;
+    font-family: var(--font-main);
+    font-size: 1.34rem;
+    font-weight: 700;
+    line-height: 1.4;
+  }
+
+  .post-title a {
+    color: var(--heading-color);
+    text-decoration: none;
+    transition: color 0.15s ease;
+  }
+
+  .post-title a:hover {
+    color: var(--link-color);
+    text-decoration: none;
+  }
+
+  /* Single-post (detail) view gets a slightly larger, article-style headline. */
+  body.post .post-title {
+    font-size: 1.6rem;
+    margin-bottom: 1rem;
+  }
+
   .post-source-sep {
     margin: 0 0.35rem;
     opacity: 0.5;
@@ -64,10 +104,10 @@
   }
 
   .post-content {
-    padding-top: 1.25rem;
-    font-size: 1.04rem;
-    line-height: 1.78;
-    color: var(--text-color);
+    padding-top: 0.85rem;
+    font-size: 1.05rem;
+    line-height: 1.85;
+    color: var(--reading-color);
     overflow-wrap: anywhere;
     word-break: break-word;
   }
@@ -166,6 +206,22 @@
 
   .tags a {
     display: inline-block;
+    padding: 0.2rem 0.65rem;
+    border: 1px solid var(--card-border);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--link-color) 7%, #fff);
+    color: var(--link-color);
+    font-size: 0.78em;
+    text-decoration: none;
+    transition:
+      background 0.15s ease,
+      border-color 0.15s ease;
+  }
+
+  .tags a:hover {
+    background: color-mix(in srgb, var(--link-color) 15%, #fff);
+    border-color: color-mix(in srgb, var(--link-color) 35%, var(--card-border));
+    text-decoration: none;
   }
 
   .tag-icon {
@@ -272,8 +328,8 @@
   .ad-slot {
     margin: 1.5rem 0;
     padding: 0.75rem;
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
+    border: 1px solid var(--card-border);
+    border-radius: var(--card-radius);
     background: var(--ad-background, #fafafa);
     text-align: center;
     overflow: auto;

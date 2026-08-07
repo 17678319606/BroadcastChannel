@@ -70,4 +70,61 @@ describe('extractPost', () => {
     // Forwarded-from ("source") must not leak into the post body.
     expect(post.content).not.toContain('Forwarded from')
   })
+
+  it('lifts a standalone title paragraph into a clickable heading (titleSplit)', async () => {
+    const html = `
+      <div class="tgme_widget_message_wrap">
+        <div class="tgme_widget_message" data-post="ExampleChannel/44">
+          <div class="tgme_widget_message_text js-message_text">
+            <p>重磅更新来袭</p>
+            <p>本次更新包含多项改进，详见 <a href="https://example.com/notes">更新说明</a>。</p>
+          </div>
+          <a class="tgme_widget_message_date"><time datetime="2026-07-16T08:30:00+00:00"></time></a>
+        </div>
+      </div>
+    `
+    const $ = load(html)
+    const item = $('.tgme_widget_message_wrap').get(0) ?? null
+
+    const post = await extractPost($, item, {
+      channel: 'ExampleChannel',
+      telegramHost: 'telegram.me',
+      staticProxy: '/static/',
+      reactionsEnabled: false,
+    })
+
+    expect(post.title).toBe('重磅更新来袭')
+    expect(post.titleSplit).toBe(true)
+    // The title must NOT be duplicated inside the body.
+    expect(post.content).not.toContain('重磅更新来袭')
+    // The remaining body (and its ordinary link) must be preserved.
+    expect(post.content).toContain('本次更新包含多项改进')
+    expect(post.content).toContain('href="https://example.com/notes"')
+  })
+
+  it('keeps the full body when there is no standalone title paragraph', async () => {
+    const html = `
+      <div class="tgme_widget_message_wrap">
+        <div class="tgme_widget_message" data-post="ExampleChannel/45">
+          <div class="tgme_widget_message_text js-message_text">
+            <p>这是一段没有独立标题的普通正文，开头就是内容本身。</p>
+          </div>
+          <a class="tgme_widget_message_date"><time datetime="2026-07-17T08:30:00+00:00"></time></a>
+        </div>
+      </div>
+    `
+    const $ = load(html)
+    const item = $('.tgme_widget_message_wrap').get(0) ?? null
+
+    const post = await extractPost($, item, {
+      channel: 'ExampleChannel',
+      telegramHost: 'telegram.me',
+      staticProxy: '/static/',
+      reactionsEnabled: false,
+    })
+
+    expect(post.titleSplit).toBe(false)
+    // No body content is ever lost.
+    expect(post.content).toContain('这是一段没有独立标题的普通正文')
+  })
 })

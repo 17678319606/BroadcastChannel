@@ -44,9 +44,9 @@ function renderPostContent(
 ): string {
   const { staticProxy } = options
 
-  // Strip media + Telegram jump-links so readers see only clean body text.
-  cleanBodyContent($, content)
-
+  // Note: media + Telegram jump-link stripping and the optional title/body split
+  // are performed in extractPost() before this function is called, so the body
+  // passed here is already the clean reading text.
   return [
     content.html(),
     ...renderRawContent($, message, { staticProxy }),
@@ -112,9 +112,29 @@ export async function extractPost($: CheerioAPI, item: AnyNode | null, options: 
     { index, telegramHost, staticProxy, normalizeUrls: false },
   )
   const contentText = content.text()
-  const title = contentText.match(TITLE_PREVIEW_REGEX)?.[0] ?? contentText
+  const title = contentText.trim().match(TITLE_PREVIEW_REGEX)?.[0] ?? contentText.trim()
   const id = message.attr('data-post')?.replace(new RegExp(`${channel}/`, 'i'), '') ?? ''
   const tags = rewriteTagLinksAndCollectTags($, content)
+
+  // Strip media + Telegram jump-links so readers see only clean body text.
+  cleanBodyContent($, content)
+
+  // If the very first paragraph is an exact standalone title (a heading-style
+  // first line), lift it out of the body so the UI can render it as a clickable
+  // heading without duplicating it. We only do this on an exact match so that
+  // ordinary body text — including any links it contains — is never truncated.
+  let titleSplit = false
+  const firstChild = content.children().first()
+  const firstNode = firstChild[0] as { name?: string, tagName?: string } | undefined
+  const firstName = firstNode?.name ?? firstNode?.tagName
+  if (firstChild.length && firstName === 'p') {
+    const firstText = firstChild.text().trim()
+    if (firstText && firstText === title) {
+      firstChild.remove()
+      titleSplit = true
+    }
+  }
+
   const contentHtml = renderPostContent($, message, content, { channel, staticProxy, index, id, title })
 
   // Composite id keeps posts unique across aggregated channels: `${channel}.${id}`.
@@ -130,5 +150,6 @@ export async function extractPost($: CheerioAPI, item: AnyNode | null, options: 
     text: contentText,
     content: contentHtml,
     reactions: reactionsEnabled ? getReactions($, message, telegramHost, staticProxy) : [],
+    titleSplit,
   }
 }

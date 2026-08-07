@@ -24,7 +24,7 @@ export function getAdSlot(env: Env, name: AdSlotName): string | null {
     return null
   }
 
-  if (isBlockedContent(raw)) {
+  if (isBlockedContent(raw, env)) {
     if (import.meta.env.DEV) {
       console.warn(`BroadcastChannel: ad slot ${name} blocked by content safety filter`)
     }
@@ -45,7 +45,7 @@ export function getAdJs(env: Env): string | null {
     return null
   }
 
-  if (isBlockedContent(raw)) {
+  if (isBlockedContent(raw, env)) {
     if (import.meta.env.DEV) {
       console.warn('BroadcastChannel: AD_JS blocked by content safety filter')
     }

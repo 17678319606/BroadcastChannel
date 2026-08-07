@@ -19,6 +19,12 @@ export interface Post {
   description?: string
   content: string
   reactions: Reaction[]
+  /**
+   * True when the post's first paragraph was an exact standalone title that was
+   * lifted out of the body, so the UI can render it as a clickable heading
+   * without duplicating it inside the body text.
+   */
+  titleSplit?: boolean
 }
 
 export interface ChannelInfo {

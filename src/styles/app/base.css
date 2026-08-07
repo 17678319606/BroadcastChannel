@@ -19,7 +19,7 @@
     margin: 0 auto;
     padding-block: 20px;
     padding-inline: var(--body-padding-inline);
-    background: var(--background-color);
+    background: var(--page-bg);
     color: var(--text-color);
     font-family: var(--font-secondary);
     font-size: var(--font-scale);

@@ -99,7 +99,7 @@ export async function getChannelInfo(params: AggregatedChannelInfoParams = {}): 
   // Disabled by setting CONTENT_FILTER=false.
   const contentFilteringEnabled = getBooleanEnv(import.meta.env, 'CONTENT_FILTER') !== false
   const posts = contentFilteringEnabled
-    ? aggregated.filter(post => !isBlockedContent(`${post.title}\n${post.text}`))
+    ? aggregated.filter(post => !isBlockedContent(`${post.title}\n${post.text}`, import.meta.env))
     : aggregated
 
   const primary = loaded[0]

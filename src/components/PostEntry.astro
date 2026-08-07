@@ -31,6 +31,15 @@ const hasTags = post.tags.length > 0
       </a>
     </p>
   </div>
+  {
+    post.titleSplit && (
+      <h2 class="post-title">
+        <a href={`${SITE_URL}posts/${post.id}`} title={post.title}>
+          {post.title}
+        </a>
+      </h2>
+    )
+  }
   {hasContent && <div class="post-content content" set:html={contentHtml} />}
   {
     hasReactions && (

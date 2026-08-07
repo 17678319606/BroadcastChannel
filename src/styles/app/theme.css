@@ -53,6 +53,15 @@
     --back-to-top-offset: 1.25rem;
     --icon-hover-filter: grayscale(1) opacity(0.8);
     --icon-secondary-filter: grayscale(1) opacity(0.5);
+
+    /* Reading-blog surface tokens (not part of the Bear CSS contract). */
+    --page-bg: #fafaf9;
+    --reading-color: #2f2f2f;
+    --card-bg: #ffffff;
+    --card-border: color-mix(in srgb, var(--text-color) 14%, transparent);
+    --card-radius: 14px;
+    --card-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 6px 20px rgba(15, 23, 42, 0.04);
+    --card-shadow-hover: 0 2px 6px rgba(15, 23, 42, 0.06), 0 14px 36px rgba(15, 23, 42, 0.07);
   }
 
   @media (prefers-color-scheme: dark) {
@@ -68,6 +77,12 @@
       --reaction-paid-color: #f3cc65;
       --reaction-paid-border-color: color-mix(in srgb, var(--reaction-paid-color) 52%, transparent);
       --reaction-paid-background-color: color-mix(in srgb, var(--reaction-paid-color) 14%, var(--background-color));
+      --page-bg: #01242e;
+      --reading-color: #d7d7d7;
+      --card-bg: #04323f;
+      --card-border: color-mix(in srgb, var(--text-color) 20%, transparent);
+      --card-shadow: none;
+      --card-shadow-hover: 0 0 0 1px color-mix(in srgb, var(--link-color) 45%, transparent);
     }
   }
 }
