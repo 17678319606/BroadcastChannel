@@ -1,9 +1,8 @@
 import type { AnyNode, CheerioAPI } from 'cheerio'
 import type { Post, Reaction } from '../../types'
 import type { ExtractPostOptions, MessageSelection } from './types'
-import { modifyHTMLContent } from './content'
+import { cleanBodyContent, modifyHTMLContent } from './content'
 import { getCustomEmojiImage, normalizeEmoji } from './emoji'
-import { getAudio, getForwardedFrom, getImages, getImageStickers, getLinkPreview, getReply, getTgsStickers, getVideo, getVideoStickers } from './media'
 import { renderRawContent } from './renderers/raw'
 import { normalizeUrlAttributes } from './url'
 
@@ -43,20 +42,14 @@ function renderPostContent(
     title: string
   },
 ): string {
-  const { channel, staticProxy, index, id, title } = options
+  const { staticProxy } = options
+
+  // Strip media + Telegram jump-links so readers see only clean body text.
+  cleanBodyContent($, content)
 
   return [
-    getForwardedFrom($, message),
-    getReply($, message, { channel }),
-    getImages($, message, { staticProxy, id, index, title }),
-    getVideo($, message, { staticProxy, index }),
-    getAudio($, message, { staticProxy }),
     content.html(),
-    getImageStickers($, message, { staticProxy, index }),
-    getTgsStickers($, message, { staticProxy, index }),
-    getVideoStickers($, message, { staticProxy, index }),
     ...renderRawContent($, message, { staticProxy }),
-    getLinkPreview($, message, { staticProxy, index }),
   ]
     .filter(isNonEmptyString)
     .join('')

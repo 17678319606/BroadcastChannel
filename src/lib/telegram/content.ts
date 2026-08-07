@@ -98,21 +98,52 @@ export async function modifyHTMLContent($: CheerioAPI, content: MessageSelection
     }
   }
 
-  // Performance: lazy-load media below the fold. The very first image of the first
-  // post is the most likely LCP element, so load it eagerly with high priority.
-  for (const [imgIndex, imgNode] of content.find('img').toArray().entries()) {
-    const img = $(imgNode)
-    if (img.attr('loading')) {
-      // Preserve explicit hints (e.g. tg-emoji already sets loading="lazy").
-      continue
-    }
-    if (index === 0 && imgIndex === 0) {
-      img.attr('loading', 'eager').attr('fetchpriority', 'high').attr('decoding', 'async')
-    }
-    else {
-      img.attr('loading', 'lazy').attr('decoding', 'async')
+  return content
+}
+
+/**
+ * Strip media and Telegram jump-links from a post body so the rendered article
+ * shows only clean reading text plus ordinary in-body website links.
+ *
+ * - Removes images / video / audio / stickers / custom-emoji.
+ * - Reveals spoilers as plain text.
+ * - Unwraps links that jump to Telegram (t.me / tg:// / telegram.org) or carry
+ *   unsafe schemes (javascript:, data:, blob:), keeping the visible text.
+ * - Leaves ordinary http(s) website links and internal site links intact.
+ */
+export function cleanBodyContent($: CheerioAPI, content: MessageSelection): MessageSelection {
+  content
+    .find('img, video, audio, source, tg-emoji, .tgme_widget_message_sticker, .tgme_widget_message_tgsticker_wrap, .js-videosticker_video, .tgme_widget_message_roundvideo_wrap')
+    .remove()
+
+  for (const spoiler of content.find('tg-spoiler').toArray()) {
+    $(spoiler).replaceWith($(spoiler).text())
+  }
+
+  for (const linkNode of content.find('a').toArray()) {
+    const link = $(linkNode)
+    const href = (link.attr('href') ?? '').trim()
+    if (shouldUnwrapLink(href)) {
+      link.replaceWith(link.text())
     }
   }
 
   return content
+}
+
+/** True for links that jump to Telegram or use an unsafe scheme and should be unwrapped. */
+function shouldUnwrapLink(href: string): boolean {
+  if (!href) {
+    return false
+  }
+  if (/^(?:tg:|javascript:|data:|blob:)/i.test(href)) {
+    return true
+  }
+  try {
+    const url = new URL(href, 'https://example.com')
+    return /^(?:t\.me|telegram\.me|telegram\.org)$/i.test(url.hostname)
+  }
+  catch {
+    return false
+  }
 }

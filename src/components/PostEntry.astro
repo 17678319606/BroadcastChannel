@@ -29,24 +29,6 @@ const hasTags = post.tags.length > 0
       <a href={`${SITE_URL}posts/${post.id}`} title={post.datetime}>
         <time datetime={post.datetime} title={timeago}>{timeago}</time>
       </a>
-      {
-        sourceChannel && (
-          <>
-            <span class="post-source-sep" aria-hidden="true">
-              ·
-            </span>
-            <a
-              href={`https://t.me/${sourceChannel}`}
-              class="post-source"
-              target="_blank"
-              rel="noopener noreferrer"
-              title={`来源频道 @${sourceChannel}`}
-            >
-              @{sourceChannel}
-            </a>
-          </>
-        )
-      }
     </p>
   </div>
   {hasContent && <div class="post-content content" set:html={contentHtml} />}

@@ -33,4 +33,41 @@ describe('extractPost', () => {
     expect(post.content).toBe('Release notes。Details for <a href="/search/result?q=%23release" title="#release">#release</a> and <a href="/search/result?q=%23astro" title="#astro">#astro</a>')
     expect(post.reactions).toEqual([])
   })
+
+  it('strips media + Telegram jump-links but keeps ordinary website links', async () => {
+    const html = `
+      <div class="tgme_widget_message_wrap">
+        <div class="tgme_widget_message" data-post="ExampleChannel/43">
+          <div class="tgme_widget_message_text js-message_text">
+            正文内容。详见 <a href="https://example.com/doc">官网说明</a>，
+            频道 <a href="https://t.me/otherchan">@otherchan</a> 也有。
+            私信 <a href="tg://resolve?domain=bot">打开机器人</a>。
+            <img src="https://cdn.t.me/photo.jpg" />
+            <video src="https://cdn.t.me/clip.mp4"></video>
+          </div>
+          <a class="tgme_widget_message_date"><time datetime="2026-07-15T08:30:00+00:00"></time></a>
+          <div class="tgme_widget_message_forwarded_from">Forwarded from <a href="https://t.me/origin">@origin</a></div>
+        </div>
+      </div>
+    `
+    const $ = load(html)
+    const item = $('.tgme_widget_message_wrap').get(0) ?? null
+
+    const post = await extractPost($, item, {
+      channel: 'ExampleChannel',
+      telegramHost: 'telegram.me',
+      staticProxy: '/static/',
+      reactionsEnabled: false,
+    })
+
+    expect(post.content).not.toContain('<img')
+    expect(post.content).not.toContain('<video')
+    expect(post.content).not.toContain('t.me')
+    expect(post.content).not.toContain('tg://')
+    expect(post.content).toContain('href="https://example.com/doc"')
+    expect(post.content).toContain('@otherchan')
+    expect(post.content).toContain('打开机器人')
+    // Forwarded-from ("source") must not leak into the post body.
+    expect(post.content).not.toContain('Forwarded from')
+  })
 })
