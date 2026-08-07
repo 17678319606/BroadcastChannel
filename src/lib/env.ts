@@ -1,6 +1,6 @@
 import type { NavItem } from '../types'
 
-type Env = Record<string, string | undefined>
+export type Env = Record<string, string | undefined>
 
 export const DEFAULT_TELEGRAM_HOST = 'telegram.me'
 

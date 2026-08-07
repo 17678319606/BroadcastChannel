@@ -1,5 +1,6 @@
 import type { AggregatedChannelInfoParams, ChannelCursorMap, ChannelInfo, GetChannelInfoParams, Post } from '../../types'
-import { getChannelList, getEnv, getPrimaryChannel } from '../env'
+import { getBooleanEnv, getChannelList, getEnv, getPrimaryChannel } from '../env'
+import { isBlockedContent } from '../safety'
 import { modifyHTMLContent } from './content'
 import { extractPost } from './parse'
 import { loadChannelDocument } from './request'
@@ -85,9 +86,16 @@ export async function getChannelInfo(params: AggregatedChannelInfoParams = {}): 
   )
 
   const loaded = results.filter((channel): channel is ChannelInfo => channel !== null)
-  const posts = loaded
+  const aggregated = loaded
     .flatMap(channel => channel.posts)
     .sort((a, b) => new Date(b.datetime).getTime() - new Date(a.datetime).getTime())
+
+  // Block adult / gambling / drug / gray-black financial content (net-disk sharing allowed).
+  // Disabled by setting CONTENT_FILTER=false.
+  const contentFilteringEnabled = getBooleanEnv(import.meta.env, 'CONTENT_FILTER') !== false
+  const posts = contentFilteringEnabled
+    ? aggregated.filter(post => !isBlockedContent(`${post.title}\n${post.text}`))
+    : aggregated
 
   const primary = loaded[0]
   const siteTitle = getEnv(import.meta.env, 'SITE_TITLE')
@@ -117,8 +125,9 @@ export function encodeCursorMap(map: ChannelCursorMap): string {
   }
 
   const json = JSON.stringify(map)
-  // Channel names and message ids are ASCII; encode defensively for any non-ASCII.
-  return btoa(unescape(encodeURIComponent(json)))
+  const b64 = btoa(unescape(encodeURIComponent(json)))
+  // URL-safe base64 so the token is safe inside a single path segment.
+  return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 }
 
 export function decodeCursorMap(cursor?: string): ChannelCursorMap {
@@ -127,7 +136,9 @@ export function decodeCursorMap(cursor?: string): ChannelCursorMap {
   }
 
   try {
-    const json = decodeURIComponent(escape(atob(cursor)))
+    const b64 = cursor.replace(/-/g, '+').replace(/_/g, '/')
+    const pad = b64.length % 4 === 0 ? '' : '='.repeat(4 - (b64.length % 4))
+    const json = decodeURIComponent(escape(atob(b64 + pad)))
     const parsed = JSON.parse(json)
     if (parsed && typeof parsed === 'object') {
       const result: ChannelCursorMap = {}

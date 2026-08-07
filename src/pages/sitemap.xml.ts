@@ -1,34 +1,39 @@
 import type { APIRoute } from 'astro'
 import { getSitemapUrl, resolveSiteUrl } from '../lib/seo'
-import { getChannelInfo } from '../lib/telegram'
+import { buildChannelCursor, encodeCursorMap, getChannelInfo } from '../lib/telegram'
+
+const MAX_SITEMAPS = 50
 
 export const GET: APIRoute = async (Astro) => {
   const siteUrl = resolveSiteUrl(Astro.locals.SITE_URL, Astro.url.origin)
-  const channel = await getChannelInfo()
-  const posts = channel.posts || []
 
-  const pageSize = 20
-  let count = Number(posts[0]?.id)
+  const entries: string[] = []
+  let cursor: Record<string, string> = {}
 
-  const pages: number[] = []
-  if (Number.isFinite(count) && count > 0) {
-    pages.push(count)
-    while (count > pageSize) {
-      count -= pageSize
-      pages.push(count)
+  for (let i = 0; i < MAX_SITEMAPS; i++) {
+    const channel = await getChannelInfo({ before: cursor })
+    const posts = channel.posts || []
+    if (posts.length === 0) {
+      break
     }
-  }
 
-  const sitemaps = pages.map((page) => {
-    return `
-<sitemap>
-  <loc>${getSitemapUrl(siteUrl, `sitemap/${page}.xml`)}</loc>
-</sitemap>`
-  })
+    // The newest page is referenced by the `latest` token; older pages encode their
+    // own per-channel boundary cursor.
+    const boundary = buildChannelCursor(posts, 'before')
+    const token = i === 0 ? 'latest' : encodeCursorMap(boundary ?? {})
+    entries.push(
+      `\n<sitemap>\n  <loc>${getSitemapUrl(siteUrl, `sitemap/${token}.xml`)}</loc>\n</sitemap>`,
+    )
+
+    if (!boundary) {
+      break
+    }
+    cursor = boundary
+  }
 
   return new Response(`<?xml version="1.0" encoding="UTF-8"?>
 <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  ${sitemaps.join('')}
+  ${entries.join('')}
 </sitemapindex>`, {
     headers: {
       'Cache-Control': 'public, max-age=3600',

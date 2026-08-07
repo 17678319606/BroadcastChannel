@@ -11,8 +11,12 @@ English | [简体中文](./README.zh-cn.md)
 ## ✨ Features
 
 - **Turn your Telegram Channel into a MicroBlog**
-- **SEO friendly** `/sitemap.xml`
-- **0 JS on the browser side**
+- **Multi-channel aggregation** — set `CHANNELS` to merge several Telegram channels into one feed, one RSS, with per-post source labels and cross-channel pagination/search
+- **SEO friendly** — `/sitemap.xml` (+ per-page sitemaps), `robots.txt`, canonical/OG/Twitter tags, and JSON-LD (`WebSite` + `Article` rich results)
+- **Subscription CTA** — a configurable banner that drives followers to your update/subscribe link
+- **Ad slots** — `AD_SLOT_TOP` / `AD_SLOT_INLINE` / `AD_SLOT_BOTTOM` HTML plus a global `AD_JS` snippet, all scanned by the safety filter
+- **Content safety filter** — adult / gambling / drug / gray-black financial posts are blocked automatically (net-disk sharing is allowed)
+- **0 JS on the browser side** (except your optional `AD_JS`)
 - **RSS and RSS JSON** `/rss.xml` `/rss.json`
 
 ## 🪧 Demo
@@ -158,6 +162,22 @@ PODCAST=https://PODCAST.com
 HEADER_INJECT=
 FOOTER_INJECT=
 
+## Subscription call-to-action (appears under the header when SUBSCRIBE_URL is set)
+SUBSCRIBE_URL=https://example.com/go/abcd
+SUBSCRIBE_TEXT=订阅更新
+SUBSCRIBE_ENABLED=true
+
+## Ad slots (HTML and/or JS). Every ad is scanned by the safety filter; banned creatives are rejected.
+AD_ENABLED=true
+AD_SLOT_TOP=
+AD_SLOT_INLINE=
+AD_SLOT_BOTTOM=
+AD_JS=
+AD_EVERY=5
+
+## Content safety filter (blocks adult / gambling / drug / gray-black financial posts; net-disk sharing allowed)
+CONTENT_FILTER=true
+
 ## SEO
 NOFOLLOW=false
 NOINDEX=false
@@ -184,6 +204,20 @@ SERVER_ADAPTER=
 # Append hostname-only proxy targets to the defaults, separated by commas (no protocol, port, or path).
 TARGET_WHITELIST=a.com,b.com
 ```
+
+### Subscription CTA
+
+Set `SUBSCRIBE_URL` to a page where readers can follow/subscribe to updates (for example a link shortener or your own landing page, e.g. `https://jinbufenzi.com/go/be9666`). A dismissible banner is shown under the header on every page. Leave it empty to hide the banner.
+
+### Ad slots & monetization
+
+Three reserved HTML positions are available — `AD_SLOT_TOP` (above the feed), `AD_SLOT_INLINE` (between posts, every `AD_EVERY`), and `AD_SLOT_BOTTOM` (above the footer) — plus a global `AD_JS` snippet injected once before `</body>`. All ad content is passed through the safety filter; any creative matching adult / gambling / drug / gray-black financial patterns is rejected and not rendered.
+
+> **Monetization reality check (free Cloudflare, no custom domain).** On `*.pages.dev` (or any platform subdomain) most premium ad networks — notably Google AdSense — will **not** approve the site, because they require a domain you own. Networks that accept subdomains usually still demand meaningful traffic, and scraped Telegram content can violate their content policies. The ad infrastructure here is therefore best treated as _ready-to-enable_: add a cheap custom domain (Cloudflare Registrar or similar) and a compliant ad network (AdSense / Ezoic / Media.net) to actually earn. Without a domain, realistic revenue is negligible. The content safety filter protects you from policy-violating creatives either way.
+
+### Content safety filter
+
+`CONTENT_FILTER=true` (default) drops any post whose text matches adult, gambling, drug, or gray/black-market financial patterns. Ordinary net-disk resource sharing and normal link/content posts are explicitly allowed. Set `CONTENT_FILTER=false` to disable. The same filter is applied to every ad slot and `AD_JS`.
 
 ## 🎨 Themes
 

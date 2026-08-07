@@ -2,31 +2,43 @@
 import '../styles/app.css'
 import { SEO } from 'astro-seo'
 import BackToTop from '../components/BackToTop.astro'
+import AdSlot from '../components/AdSlot.astro'
+import SubscribeCta from '../components/SubscribeCta.astro'
 import SiteHeader from '../components/SiteHeader.astro'
 import SiteNavigation from '../components/SiteNavigation.astro'
 import SiteFooter from '../components/SiteFooter.astro'
+import { getAdJs } from '../lib/ads'
 import { getEnv, parseDelimitedItems } from '../lib/env'
 import { getPageSeo } from '../lib/seo'
 import type { ChannelInfo, SeoMeta } from '../types'
 
 const { SITE_URL, RSS_URL, RSS_PREFIX } = Astro.locals
-const { channel, pageClass, pageType, seo } = Astro.props as {
+const { channel, pageClass, pageType, seo, structuredData } = Astro.props as {
   channel: ChannelInfo
   pageClass?: string
   pageType: 'home' | 'post' | 'page'
   seo?: SeoMeta
+  structuredData?: Record<string, unknown>
 }
 
 const locale = getEnv(import.meta.env, 'LOCALE')
 const twitter = getEnv(import.meta.env, 'TWITTER')
-const { currentPathname, hasCustomTitle, linksPathname, seoParams, siteRootPathname, siteTitle, tagsPathname } =
-  getPageSeo({
-    channel,
-    locale,
-    seo,
-    siteUrl: SITE_URL,
-    url: Astro.url,
-  })
+const {
+  absoluteSiteUrl,
+  currentPathname,
+  hasCustomTitle,
+  linksPathname,
+  seoParams,
+  siteRootPathname,
+  siteTitle,
+  tagsPathname,
+} = getPageSeo({
+  channel,
+  locale,
+  seo,
+  siteUrl: SITE_URL,
+  url: Astro.url,
+})
 
 const GOOGLE_SEARCH_SITE = getEnv(import.meta.env, 'GOOGLE_SEARCH_SITE')
 const searchAction = GOOGLE_SEARCH_SITE ? 'https://www.google.com/search' : `${SITE_URL}search/result`
@@ -37,6 +49,27 @@ const TAGS = getEnv(import.meta.env, 'TAGS')
 const LINKS = getEnv(import.meta.env, 'LINKS')
 const navs = parseDelimitedItems(getEnv(import.meta.env, 'NAVS'))
 
+const adJs = getAdJs(import.meta.env)
+
+// Structured data for richer search results. Home gets a WebSite + SearchAction node;
+// post/detail pages receive a pre-built Article node via `structuredData`.
+const homeJsonLd =
+  pageType === 'home'
+    ? {
+        '@context': 'https://schema.org',
+        '@type': 'WebSite',
+        name: siteTitle || absoluteSiteUrl,
+        url: absoluteSiteUrl,
+        description: seoParams.description,
+        potentialAction: {
+          '@type': 'SearchAction',
+          target: `${absoluteSiteUrl}search/result?q={search_term_string}`,
+          'query-input': 'required name=search_term_string',
+        },
+      }
+    : null
+
+const jsonLd = structuredData ?? homeJsonLd
 const skipLinkText = 'Skip to main content'
 ---
 
@@ -56,6 +89,11 @@ const skipLinkText = 'Skip to main content'
       }}
       {...seoParams}
     />
+    {
+      jsonLd && (
+        <script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd).replace(/</g, '\\u003c')} />
+      )
+    }
     <Fragment set:html={HEADER_INJECT} />
   </head>
 
@@ -76,11 +114,15 @@ const skipLinkText = 'Skip to main content'
         tagsPathname={tagsPathname}
       />
     </SiteHeader>
+    <SubscribeCta />
     <main id="main-content">
+      <AdSlot name="AD_SLOT_TOP" />
       <slot />
+      <AdSlot name="AD_SLOT_BOTTOM" />
     </main>
     <SiteFooter />
     <BackToTop />
+    {adJs && <Fragment set:html={`<script>${adJs}</script>`} />}
     <Fragment set:html={FOOTER_INJECT} />
   </body>
 </html>

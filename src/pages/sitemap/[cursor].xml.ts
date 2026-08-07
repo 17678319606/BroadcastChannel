@@ -4,9 +4,9 @@ import { decodeCursorMap, getChannelInfo } from '../../lib/telegram'
 
 export const GET: APIRoute = async (Astro) => {
   const siteUrl = resolveSiteUrl(Astro.locals.SITE_URL, Astro.url.origin)
-  const channel = await getChannelInfo({
-    before: decodeCursorMap(Astro.params.cursor),
-  })
+  const rawCursor = Astro.params.cursor
+  const before = rawCursor === 'latest' || !rawCursor ? {} : decodeCursorMap(rawCursor)
+  const channel = await getChannelInfo({ before })
   const posts = channel.posts || []
 
   const xmlUrls = posts.map(post => `

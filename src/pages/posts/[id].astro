@@ -31,6 +31,6 @@ const channel = {
   after={false}
   isDetail={true}
   pageHeading={post.title || channel.title}
-  pageSeo={post}
+  pageSeo={{ title: post.title, text: post.description, publishedTime: post.datetime }}
   pageType="post"
 />

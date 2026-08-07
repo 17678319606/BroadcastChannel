@@ -1,7 +1,9 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro'
+import AdSlot from '../components/AdSlot.astro'
 import PostEntry from '../components/PostEntry.astro'
 import { buildChannelCursor, encodeCursorMap } from '../lib/telegram'
+import { getAdEvery } from '../lib/ads'
 import type { ChannelInfo, SeoMeta } from '../types'
 
 const { SITE_URL } = Astro.locals
@@ -36,20 +38,57 @@ const afterCursor = (() => {
 })()
 const hasOlderPosts = showOlder && Boolean(beforeCursor)
 const hasNewerPosts = showNewer && Boolean(afterCursor)
+
+// Inline ad cadence (only meaningful on aggregated feed pages, not single-post views).
+const inlineAdEvery = isDetail ? 0 : getAdEvery(import.meta.env)
+
+// Article structured data for rich search results on a single post page.
+const jsonLd =
+  pageType === 'post' && posts[0]
+    ? {
+        '@context': 'https://schema.org',
+        '@type': 'Article',
+        headline: posts[0].title || channel.title,
+        datePublished: posts[0].datetime,
+        dateModified: posts[0].datetime,
+        author: { '@type': 'Organization', name: channel.title },
+        publisher: {
+          '@type': 'Organization',
+          name: channel.title,
+          logo: channel.avatar ? { '@type': 'ImageObject', url: channel.avatar } : undefined,
+        },
+        mainEntityOfPage: {
+          '@type': 'WebPage',
+          '@id': Astro.url.toString(),
+        },
+        description: posts[0].description || posts[0].text?.slice(0, 160),
+      }
+    : undefined
 ---
 
-<BaseLayout channel={channel} pageClass={pageClass} seo={pageSeo} pageType={pageType}>
+<BaseLayout channel={channel} pageClass={pageClass} seo={pageSeo} structuredData={jsonLd} pageType={pageType}>
   {pageHeading ? <h1 class="sr-only">{pageHeading}</h1> : null}
   <slot name="header" />
-  <ol class="posts-feed" aria-label={isDetail ? 'Post' : 'Posts'}>
-    {
-      posts.map((post) => (
-        <li>
-          <PostEntry post={post} isDetail={isDetail} />
-        </li>
-      ))
-    }
-  </ol>
+  {
+    posts.length === 0 ? (
+      <p class="empty-state">暂无内容。请检查频道配置或稍后重试。</p>
+    ) : (
+      <ol class="posts-feed" aria-label={isDetail ? 'Post' : 'Posts'}>
+        {posts.map((post, index) => (
+          <Fragment>
+            <li>
+              <PostEntry post={post} isDetail={isDetail} />
+            </li>
+            {inlineAdEvery > 0 && !isDetail && (index + 1) % inlineAdEvery === 0 && index < posts.length - 1 ? (
+              <li class="ad-slot-wrap" aria-hidden="false">
+                <AdSlot name="AD_SLOT_INLINE" />
+              </li>
+            ) : null}
+          </Fragment>
+        ))}
+      </ol>
+    )
+  }
 
   {
     hasOlderPosts || hasNewerPosts ? (

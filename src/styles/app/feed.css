@@ -171,4 +171,77 @@
     padding: 0;
     list-style: none;
   }
+
+  /* Subscription call-to-action banner */
+  .subscribe-cta {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin: 0 auto 1.25rem;
+    padding: 0.6rem 1rem;
+    border: 1px solid var(--accent-color, #3b82f6);
+    border-radius: 999px;
+    background: var(--accent-background, #eff6ff);
+    font-size: 0.9em;
+  }
+
+  .subscribe-cta__text {
+    color: var(--text-color);
+  }
+
+  .subscribe-cta__btn {
+    display: inline-block;
+    padding: 0.3rem 0.95rem;
+    border-radius: 999px;
+    background: var(--accent-color, #3b82f6);
+    color: #fff;
+    text-decoration: none;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .subscribe-cta__btn:hover {
+    opacity: 0.9;
+  }
+
+  /* Ad slots — clearly labelled for ad-network compliance */
+  .ad-slot {
+    margin: 1.5rem 0;
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--ad-background, #fafafa);
+    text-align: center;
+    overflow: auto;
+  }
+
+  .ad-slot::before {
+    content: '广告';
+    display: block;
+    margin-bottom: 0.4rem;
+    font-size: 0.7em;
+    letter-spacing: 0.05em;
+    opacity: 0.45;
+    text-align: right;
+  }
+
+  .ad-slot--top {
+    margin-top: 0;
+  }
+
+  .ad-slot--bottom {
+    margin-bottom: 0;
+  }
+
+  .ad-slot-wrap {
+    list-style: none;
+  }
+
+  .empty-state {
+    padding: 3rem 1rem;
+    text-align: center;
+    opacity: 0.7;
+  }
 }

@@ -41,20 +41,41 @@ async function fetchTelegramHtml({ host, channel, id, before, after, q, headers 
   })
 }
 
-const loadTelegramHtml = defineCachedFunction(fetchTelegramHtml, {
-  name: 'telegram-html',
-  maxAge: 60 * 5,
-  // A detached refresh has no Cloudflare waitUntil context and can leave a stuck pending promise.
-  swr: false,
-  getKey: ({ host, channel, id, before, after, q }) => JSON.stringify({
-    host,
-    channel,
-    id: id || '',
-    before: before || '',
-    after: after || '',
-    q: q || '',
-  }),
-})
+// Cloudflare Workers / EdgeOne edge runtimes expose the Cache API (`caches.default`).
+// Elsewhere (Node standalone, local dev) we fall back to a process-local in-memory cache
+// so the app still works without a KV/Cache binding.
+const USE_CACHE_API = typeof caches !== 'undefined'
+const MEMORY_TTL_MS = 5 * 60 * 1000
+const memoryStore = new Map<string, { value: string, expires: number }>()
+
+async function memoryCachedFetch(params: TelegramHtmlParams): Promise<string> {
+  const key = JSON.stringify(params)
+  const now = Date.now()
+  const hit = memoryStore.get(key)
+  if (hit && hit.expires > now) {
+    return hit.value
+  }
+  const value = await fetchTelegramHtml(params)
+  memoryStore.set(key, { value, expires: now + MEMORY_TTL_MS })
+  return value
+}
+
+const loadTelegramHtml = USE_CACHE_API
+  ? defineCachedFunction(fetchTelegramHtml, {
+      name: 'telegram-html',
+      maxAge: 60 * 5,
+      // A detached refresh has no Cloudflare waitUntil context and can leave a stuck pending promise.
+      swr: false,
+      getKey: ({ host, channel, id, before, after, q }) => JSON.stringify({
+        host,
+        channel,
+        id: id || '',
+        before: before || '',
+        after: after || '',
+        q: q || '',
+      }),
+    })
+  : memoryCachedFetch
 
 export async function loadChannelDocument(
   params: GetChannelInfoParams & { id?: string } = {},

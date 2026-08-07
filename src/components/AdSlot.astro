@@ -1,0 +1,15 @@
+---
+import { getAdSlot } from '../lib/ads'
+import type { AdSlotName } from '../lib/ads'
+
+const { name } = Astro.props as { name: AdSlotName }
+const html = getAdSlot(import.meta.env, name)
+---
+
+{
+  html && (
+    <div class={`ad-slot ad-slot--${name.replace('AD_SLOT_', '').toLowerCase()}`} aria-label="Advertisement">
+      <Fragment set:html={html} />
+    </div>
+  )
+}

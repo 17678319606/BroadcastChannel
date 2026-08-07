@@ -1,0 +1,18 @@
+---
+import { getBooleanEnv, getEnv } from '../lib/env'
+
+const url = getEnv(import.meta.env, 'SUBSCRIBE_URL')
+const enabled = Boolean(url) && getBooleanEnv(import.meta.env, 'SUBSCRIBE_ENABLED') !== false
+const text = getEnv(import.meta.env, 'SUBSCRIBE_TEXT') || '订阅更新'
+---
+
+{
+  enabled && (
+    <div class="subscribe-cta" role="region" aria-label="订阅更新引导">
+      <span class="subscribe-cta__text">📡 关注更新，不错过任何新内容</span>
+      <a class="subscribe-cta__btn" href={url} target="_blank" rel="noopener noreferrer">
+        {text}
+      </a>
+    </div>
+  )
+}

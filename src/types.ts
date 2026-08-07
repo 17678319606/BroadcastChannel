@@ -34,6 +34,8 @@ export interface SeoMeta {
   text?: string
   noindex?: string | boolean
   nofollow?: string | boolean
+  /** ISO datetime used for the article:published_time / article:modified_time OG tags. */
+  publishedTime?: string
 }
 
 /** Parameters accepted by loadChannelDocument / getChannelInfo (single channel). */

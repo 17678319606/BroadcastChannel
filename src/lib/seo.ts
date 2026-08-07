@@ -69,11 +69,21 @@ export function getPageSeo(options: {
           title: pageTitle ?? siteTitle,
           url: canonical,
           image: shareImage,
+          siteName: siteTitle,
         },
         optional: {
           description: seoDescription,
           locale,
         },
+        ...(isArticle
+          ? {
+              article: {
+                publishedTime: seo?.publishedTime,
+                modifiedTime: seo?.publishedTime,
+                author: siteTitle,
+              },
+            }
+          : {}),
       },
       extend: {
         link: [
