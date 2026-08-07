@@ -41,6 +41,19 @@
     text-decoration: underline;
   }
 
+  .post-source-sep {
+    margin: 0 0.35rem;
+    opacity: 0.5;
+  }
+
+  .post-source {
+    opacity: 0.7;
+  }
+
+  .post-source:hover {
+    opacity: 1;
+  }
+
   .timeline-dot {
     display: none;
   }

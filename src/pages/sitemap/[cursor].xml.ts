@@ -1,11 +1,11 @@
 import type { APIRoute } from 'astro'
 import { getSitemapUrl, resolveSiteUrl } from '../../lib/seo'
-import { getChannelInfo } from '../../lib/telegram'
+import { decodeCursorMap, getChannelInfo } from '../../lib/telegram'
 
 export const GET: APIRoute = async (Astro) => {
   const siteUrl = resolveSiteUrl(Astro.locals.SITE_URL, Astro.url.origin)
   const channel = await getChannelInfo({
-    before: Astro.params.cursor,
+    before: decodeCursorMap(Astro.params.cursor),
   })
   const posts = channel.posts || []
 

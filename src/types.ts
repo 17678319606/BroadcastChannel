@@ -7,7 +7,10 @@ export interface Reaction {
 }
 
 export interface Post {
+  /** Composite identifier `${channel}.${messageId}`, unique across aggregated channels. */
   id: string
+  /** Source Telegram channel username (the string after `t.me/`). */
+  channel: string
   title: string
   type: 'text' | 'service'
   datetime: string
@@ -33,10 +36,24 @@ export interface SeoMeta {
   nofollow?: string | boolean
 }
 
-/** Parameters accepted by getChannelInfo */
+/** Parameters accepted by loadChannelDocument / getChannelInfo (single channel). */
 export interface GetChannelInfoParams {
+  channel?: string
   before?: string
   after?: string
+  q?: string
+}
+
+/**
+ * Per-channel pagination boundary map used for aggregated feeds.
+ * Key = channel username, value = the Telegram message id cursor for that channel.
+ */
+export type ChannelCursorMap = Record<string, string>
+
+/** Parameters accepted by the aggregated getChannelInfo. */
+export interface AggregatedChannelInfoParams {
+  before?: ChannelCursorMap
+  after?: ChannelCursorMap
   q?: string
 }
 

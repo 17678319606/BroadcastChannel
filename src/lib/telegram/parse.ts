@@ -124,8 +124,12 @@ export async function extractPost($: CheerioAPI, item: AnyNode | null, options: 
   const tags = rewriteTagLinksAndCollectTags($, content)
   const contentHtml = renderPostContent($, message, content, { channel, staticProxy, index, id, title })
 
+  // Composite id keeps posts unique across aggregated channels: `${channel}.${id}`.
+  const compositeId = id ? `${channel}.${id}` : ''
+
   return {
-    id,
+    id: compositeId,
+    channel,
     title,
     type: message.attr('class')?.includes('service_message') ? 'service' : 'text',
     datetime: message.find('.tgme_widget_message_date time').attr('datetime') ?? '',

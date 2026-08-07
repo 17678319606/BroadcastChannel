@@ -24,7 +24,8 @@ describe('extractPost', () => {
       reactionsEnabled: false,
     })
 
-    expect(post.id).toBe('42')
+    expect(post.id).toBe('ExampleChannel.42')
+    expect(post.channel).toBe('ExampleChannel')
     expect(post.title).toBe('Release notes')
     expect(post.datetime).toBe('2026-07-14T08:30:00+00:00')
     expect(post.tags).toEqual(['release', 'astro'])

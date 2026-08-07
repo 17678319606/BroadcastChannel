@@ -3,7 +3,7 @@ import type { LoadedChannelDocument } from './types'
 import * as cheerio from 'cheerio'
 import { defineCachedFunction } from 'ocache'
 import { $fetch } from 'ofetch'
-import { getBooleanEnv, getEnv, getStaticProxy, getTelegramHost } from '../env'
+import { getBooleanEnv, getPrimaryChannel, getStaticProxy, getTelegramHost } from '../env'
 
 interface TelegramHtmlParams {
   host: string
@@ -13,14 +13,6 @@ interface TelegramHtmlParams {
   after?: string
   q?: string
   headers: Record<string, string>
-}
-
-function getRequiredEnv(name: string): string {
-  const value = getEnv(import.meta.env, name)
-  if (!value) {
-    throw new Error(`Missing required env: ${name}`)
-  }
-  return value
 }
 
 export function getTelegramRequestHeaders(): Record<string, string> {
@@ -67,9 +59,13 @@ const loadTelegramHtml = defineCachedFunction(fetchTelegramHtml, {
 export async function loadChannelDocument(
   params: GetChannelInfoParams & { id?: string } = {},
 ): Promise<LoadedChannelDocument> {
-  const { before, after, q, id } = params
+  const { before, after, q, id, channel = getPrimaryChannel(import.meta.env) } = params
+
+  if (!channel) {
+    throw new Error('Missing required env: CHANNEL or CHANNELS')
+  }
+
   const host = getTelegramHost(import.meta.env)
-  const channel = getRequiredEnv('CHANNEL')
   const staticProxy = getStaticProxy(import.meta.env)
   const reactionsEnabled = getBooleanEnv(import.meta.env, 'REACTIONS')
   const html = await loadTelegramHtml({

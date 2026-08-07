@@ -10,7 +10,8 @@ const timezone = getEnv(import.meta.env, 'TIMEZONE')
 const { SITE_URL } = Astro.locals
 const { post, isDetail } = Astro.props as { post: Post; isDetail?: boolean }
 
-const channelName = getEnv(import.meta.env, 'CHANNEL')
+const sourceChannel = post.channel
+const sourceMessageId = post.id.includes('.') ? post.id.split('.')[1] : post.id
 const commentsEnabled = getBooleanEnv(import.meta.env, 'COMMENTS')
 const reactionsEnabled = getBooleanEnv(import.meta.env, 'REACTIONS')
 
@@ -28,6 +29,24 @@ const hasTags = post.tags.length > 0
       <a href={`${SITE_URL}posts/${post.id}`} title={post.datetime}>
         <time datetime={post.datetime} title={timeago}>{timeago}</time>
       </a>
+      {
+        sourceChannel && (
+          <>
+            <span class="post-source-sep" aria-hidden="true">
+              ·
+            </span>
+            <a
+              href={`https://t.me/${sourceChannel}`}
+              class="post-source"
+              target="_blank"
+              rel="noopener noreferrer"
+              title={`来源频道 @${sourceChannel}`}
+            >
+              @{sourceChannel}
+            </a>
+          </>
+        )
+      }
     </p>
   </div>
   {hasContent && <div class="post-content content" set:html={contentHtml} />}
@@ -81,7 +100,7 @@ const hasTags = post.tags.length > 0
           is:inline
           async
           src="https://telegram.org/js/telegram-widget.js"
-          data-telegram-discussion={`${channelName}/${post.id}`}
+          data-telegram-discussion={`${sourceChannel}/${sourceMessageId}`}
           data-comments-limit="50"
           data-colorful="1"
           data-color="454545"

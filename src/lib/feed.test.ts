@@ -12,7 +12,8 @@ describe('json feed builder', () => {
       avatar: undefined,
     }
     const posts: Post[] = [{
-      id: '123',
+      id: 'chan.123',
+      channel: 'chan',
       title: 'Post title',
       type: 'text',
       datetime: '2026-01-02T03:04:05.000Z',
@@ -38,8 +39,8 @@ describe('json feed builder', () => {
     })
     expect(feed.items).toHaveLength(1)
     expect(feed.items[0]).toMatchObject({
-      id: 'https://example.com/blog/posts/123',
-      url: 'https://example.com/blog/posts/123',
+      id: 'https://example.com/blog/posts/chan.123',
+      url: 'https://example.com/blog/posts/chan.123',
       title: 'Post title',
       summary: 'Post summary',
       tags: ['tag'],

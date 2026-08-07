@@ -86,7 +86,7 @@ For detailed tutorials, see [Deploy your Astro site](https://docs.astro.build/en
 1. [Fork](https://github.com/miantiao-me/BroadcastChannel/fork) this project to your GitHub
 2. Create a project on Cloudflare Workers/Netlify/Vercel/EdgeOne
 3. Select the `BroadcastChannel` project and the `Astro` framework
-4. Configure the environment variable `CHANNEL` with your channel name. This is the minimal configuration; see [Configuration](#configuration) for more
+4. Configure the environment variable `CHANNEL` (single channel) or `CHANNELS` (comma-separated, multiple channels aggregated). This is the minimal configuration; see [Configuration](#configuration) for more
 5. Save and deploy
 6. Bind a domain (optional)
 7. Update code, refer to the official GitHub documentation [Syncing a fork branch from the web UI](https://docs.github.com/pull-requests/collaborating-with-pull-requests/working-with-forks/syncing-a-fork#syncing-a-fork-branch-from-the-web-ui)
@@ -116,13 +116,28 @@ Only `CHANNEL` is required. It is the public Telegram channel username (the stri
 CHANNEL=miantiao_me
 ```
 
+### Multiple channels (aggregation)
+
+Set `CHANNELS` (comma or semicolon separated) to merge several public Telegram channels into one microblog and one RSS feed. When `CHANNELS` is set, it takes precedence over the legacy single `CHANNEL`. Posts are fetched from every channel in parallel, merged by publish time (newest first), and each post shows its source channel. Pagination, search, RSS and the post detail pages all work across the aggregated set.
+
+```env
+CHANNELS=miantiao_me,durov,somechannel
+```
+
+`SITE_TITLE` and `SITE_DESCRIPTION` override the auto-derived site title/description (which otherwise come from the first channel in the list).
+
 ### Full reference
 
 Optional variables. Also see [`.env.example`](./.env.example).
 
 ```env
-## Required
+## Required (one of the following)
 CHANNEL=miantiao_me
+# CHANNELS=miantiao_me,durov,t.me/somechannel
+
+## Aggregated feed identity (optional, multi-channel only)
+SITE_TITLE=
+SITE_DESCRIPTION=
 
 ## Language and timezone (Intl/BCP 47 locale, e.g. en or zh-CN)
 LOCALE=en

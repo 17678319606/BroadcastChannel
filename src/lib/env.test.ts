@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   getBooleanEnv,
+  getChannelList,
   getEnv,
+  getPrimaryChannel,
   getStaticProxy,
   getTargetWhitelist,
   getTelegramHost,
@@ -155,5 +157,43 @@ describe('env parsing helpers', () => {
 
   it('parses comma-delimited lists and ignores empty entries', () => {
     expect(parseCsvList('alpha, , beta,, gamma ')).toEqual(['alpha', 'beta', 'gamma'])
+  })
+})
+
+describe('getChannelList', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  it('returns a single channel from the legacy CHANNEL var', () => {
+    vi.stubEnv('CHANNEL', 'miantiao_me')
+    expect(getChannelList({})).toEqual(['miantiao_me'])
+  })
+
+  it('prefers CHANNELS over the legacy CHANNEL var', () => {
+    vi.stubEnv('CHANNEL', 'legacy_chan')
+    vi.stubEnv('CHANNELS', 'a, b ; c')
+    expect(getChannelList({})).toEqual(['a', 'b', 'c'])
+  })
+
+  it('splits CHANNELS on commas and semicolons and drops empties', () => {
+    vi.stubEnv('CHANNELS', 'alpha, , beta;; gamma ,')
+    expect(getChannelList({})).toEqual(['alpha', 'beta', 'gamma'])
+  })
+
+  it('returns an empty array when neither var is set', () => {
+    vi.stubEnv('CHANNEL', undefined)
+    vi.stubEnv('CHANNELS', undefined)
+    expect(getChannelList({})).toEqual([])
+  })
+
+  it('strips t.me / https prefixes and trailing slashes from channel entries', () => {
+    vi.stubEnv('CHANNELS', 't.me/foo, https://t.me/s/bar/, baz/')
+    expect(getChannelList({})).toEqual(['foo', 'bar', 'baz'])
+  })
+
+  it('exposes the first channel as the primary channel', () => {
+    vi.stubEnv('CHANNELS', 'first,second')
+    expect(getPrimaryChannel({})).toBe('first')
   })
 })

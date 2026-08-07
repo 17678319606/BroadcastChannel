@@ -4,6 +4,50 @@ type Env = Record<string, string | undefined>
 
 export const DEFAULT_TELEGRAM_HOST = 'telegram.me'
 
+/**
+ * Comma / semicolon separated list of channel usernames (the string after `t.me/`).
+ * When set, it takes precedence over the legacy single `CHANNEL` variable.
+ */
+export const CHANNELS_ENV = 'CHANNELS'
+const LEGACY_CHANNEL_ENV = 'CHANNEL'
+
+/**
+ * Normalize a raw channel value into the bare Telegram username.
+ * Accepts `t.me/foo`, `https://t.me/s/foo`, `foo/`, leading/trailing whitespace, etc.
+ */
+function normalizeChannel(raw: string): string {
+  let value = raw.trim()
+  value = value.replace(/^https?:\/\//i, '')
+  value = value.replace(/^t\.me\//i, '')
+  value = value.replace(/^s\//i, '')
+  value = value.replace(/\/+$/, '')
+  return value.trim()
+}
+
+/**
+ * Resolve the list of configured channels.
+ * `CHANNELS` wins; falls back to the legacy single `CHANNEL`.
+ * Returns an empty array when neither is configured.
+ */
+export function getChannelList(env: Env | undefined): string[] {
+  const explicit = getEnv(env, CHANNELS_ENV)
+  if (explicit) {
+    return explicit
+      .split(/[,;]/)
+      .map(normalizeChannel)
+      .filter(Boolean)
+  }
+
+  const legacy = getEnv(env, LEGACY_CHANNEL_ENV)
+  const normalizedLegacy = legacy ? normalizeChannel(legacy) : ''
+  return normalizedLegacy ? [normalizedLegacy] : []
+}
+
+/** The first configured channel, used as the default source and site identity fallback. */
+export function getPrimaryChannel(env: Env | undefined): string | undefined {
+  return getChannelList(env)[0]
+}
+
 function getProcessEnv(name: string): string | undefined {
   return (Reflect.get(globalThis, 'process') as { env?: Env } | undefined)?.env?.[name]
 }

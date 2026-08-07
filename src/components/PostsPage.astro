@@ -1,6 +1,7 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro'
 import PostEntry from '../components/PostEntry.astro'
+import { buildChannelCursor, encodeCursorMap } from '../lib/telegram'
 import type { ChannelInfo, SeoMeta } from '../types'
 
 const { SITE_URL } = Astro.locals
@@ -25,10 +26,16 @@ const {
 }
 const posts = channel.posts ?? []
 
-const beforeCursor = posts[posts.length - 1]?.id
-const afterCursor = posts[0]?.id
-const hasOlderPosts = showOlder && beforeCursor && Number(beforeCursor) > 1
-const hasNewerPosts = showNewer && afterCursor
+const beforeCursor = (() => {
+  const map = buildChannelCursor(posts, 'before')
+  return map ? encodeCursorMap(map) : ''
+})()
+const afterCursor = (() => {
+  const map = buildChannelCursor(posts, 'after')
+  return map ? encodeCursorMap(map) : ''
+})()
+const hasOlderPosts = showOlder && Boolean(beforeCursor)
+const hasNewerPosts = showNewer && Boolean(afterCursor)
 ---
 
 <BaseLayout channel={channel} pageClass={pageClass} seo={pageSeo} pageType={pageType}>
