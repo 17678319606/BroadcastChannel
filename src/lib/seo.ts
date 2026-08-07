@@ -13,6 +13,34 @@ export function getAbsoluteSiteUrl(siteUrl: string, origin: string): string {
   return siteUrl.startsWith('http') ? siteUrl : new URL(siteUrl, origin).toString()
 }
 
+/**
+ * Build a 1200×630 social share image through the wsrv.nl proxy. Used for both
+ * the channel avatar (when no post image exists) and a post's first image so
+ * OG / Twitter cards always carry a properly-sized, format-optimized picture.
+ * Returns undefined when the source is not a usable http(s) URL.
+ */
+export function buildSocialImage(imageUrl?: string): string | undefined {
+  if (!imageUrl)
+    return undefined
+  try {
+    const parsed = new URL(imageUrl)
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:')
+      return undefined
+    return `https://wsrv.nl/?w=1200&h=630&fit=cover&url=ssl:${parsed.host}${parsed.pathname}`
+  }
+  catch {
+    return undefined
+  }
+}
+
+/** Extract the first <img src> from a post's raw HTML content. */
+export function extractFirstImageUrl(html?: string): string | undefined {
+  if (!html)
+    return undefined
+  const match = html.match(/<img[^>]+src=["']([^"']+)["']/i)
+  return match?.[1]
+}
+
 export function resolveSiteUrl(siteUrl: string, origin: string): URL {
   const resolvedSiteUrl = new URL(getAbsoluteSiteUrl(siteUrl, origin))
   resolvedSiteUrl.search = ''
@@ -43,9 +71,10 @@ export function getPageSeo(options: {
   const pageTitle = seo?.title?.trim()
   const siteTitle = channel?.title ?? ''
   const seoDescription = seo?.text ?? channel?.description
-  const shareImage = channel?.avatar
+  const fallbackShareImage = channel?.avatar
     ? `https://wsrv.nl/?w=1200&h=630&fit=cover&url=ssl:${channel.avatar.replace(URL_PROTOCOL_REGEX, '')}`
     : new URL('favicon.ico', absoluteSiteUrl).toString()
+  const shareImage = seo?.image ? buildSocialImage(seo.image) ?? fallbackShareImage : fallbackShareImage
   const favicon = channel?.avatar
     ? `https://wsrv.nl/?w=64&h=64&fit=cover&mask=circle&url=ssl:${channel.avatar.replace(URL_PROTOCOL_REGEX, '')}`
     : new URL('favicon.svg', absoluteSiteUrl).toString()
@@ -57,6 +86,7 @@ export function getPageSeo(options: {
     currentPathname,
     hasCustomTitle: Boolean(pageTitle && pageTitle !== siteTitle),
     linksPathname: normalizePathname(new URL('links', absoluteSiteUrl).pathname),
+    shareImage,
     seoParams: {
       title: pageTitle,
       description: seoDescription,

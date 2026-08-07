@@ -5,6 +5,7 @@ import PostEntry from '../components/PostEntry.astro'
 import { buildChannelCursor, encodeCursorMap } from '../lib/telegram'
 import { getAdEvery } from '../lib/ads'
 import { getPageSize } from '../lib/env'
+import { buildSocialImage, extractFirstImageUrl } from '../lib/seo'
 import type { ChannelInfo, SeoMeta } from '../types'
 
 const {
@@ -34,6 +35,12 @@ const pageSize = getPageSize(import.meta.env)
 const allPosts = channel.posts ?? []
 const posts = allPosts.slice(0, pageSize)
 
+// Detail pages use the post's first image as the social share card, falling
+// back to the channel avatar when the post has no image.
+const detailImage = pageType === 'post' && posts[0] ? extractFirstImageUrl(posts[0].content) : undefined
+const absoluteSiteUrl = new URL(Astro.locals.SITE_URL ?? '/', Astro.url.origin).toString()
+const seoWithImage = pageSeo ? { ...pageSeo, image: detailImage } : detailImage ? { image: detailImage } : pageSeo
+
 const beforeCursor = (() => {
   const map = buildChannelCursor(posts, 'before')
   return map ? encodeCursorMap(map) : ''
@@ -51,33 +58,62 @@ const hasNewerPosts = showNewer && Boolean(afterCursor)
 const inlineAdEvery = isDetail ? 0 : getAdEvery(import.meta.env)
 
 // Article structured data for rich search results on a single post page.
+// Emitted as an array (Article + BreadcrumbList) so search engines get both
+// the article entity and its position in the site hierarchy.
+const articleImage = detailImage
+  ? buildSocialImage(detailImage)
+  : channel.avatar
+    ? buildSocialImage(channel.avatar)
+    : undefined
+
 const jsonLd =
   pageType === 'post' && posts[0]
-    ? {
-        '@context': 'https://schema.org',
-        '@type': 'Article',
-        headline: posts[0].title || channel.title,
-        datePublished: posts[0].datetime,
-        dateModified: posts[0].datetime,
-        author: { '@type': 'Organization', name: channel.title },
-        publisher: {
-          '@type': 'Organization',
-          name: channel.title,
-          logo: channel.avatar ? { '@type': 'ImageObject', url: channel.avatar } : undefined,
+    ? [
+        {
+          '@context': 'https://schema.org',
+          '@type': 'Article',
+          headline: posts[0].title || channel.title,
+          datePublished: posts[0].datetime,
+          dateModified: posts[0].datetime,
+          author: { '@type': 'Organization', name: channel.title },
+          publisher: {
+            '@type': 'Organization',
+            name: channel.title,
+            logo: channel.avatar ? { '@type': 'ImageObject', url: channel.avatar } : undefined,
+          },
+          mainEntityOfPage: {
+            '@type': 'WebPage',
+            '@id': Astro.url.toString(),
+          },
+          image: articleImage,
+          description: posts[0].description || posts[0].text?.slice(0, 160),
         },
-        mainEntityOfPage: {
-          '@type': 'WebPage',
-          '@id': Astro.url.toString(),
+        {
+          '@context': 'https://schema.org',
+          '@type': 'BreadcrumbList',
+          itemListElement: [
+            {
+              '@type': 'ListItem',
+              position: 1,
+              name: channel.title || 'Home',
+              item: absoluteSiteUrl,
+            },
+            {
+              '@type': 'ListItem',
+              position: 2,
+              name: posts[0].title || channel.title,
+              item: Astro.url.toString(),
+            },
+          ],
         },
-        description: posts[0].description || posts[0].text?.slice(0, 160),
-      }
+      ]
     : undefined
 ---
 
 <BaseLayout
   channel={channel}
   pageClass={pageClass}
-  seo={pageSeo}
+  seo={seoWithImage}
   structuredData={jsonLd}
   pageType={pageType}
   prevUrl={hasNewerPosts ? newerHref : undefined}

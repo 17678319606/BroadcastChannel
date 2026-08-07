@@ -65,6 +65,41 @@
     .mobile-search .search-input {
       font-size: 16px;
     }
+
+    /* Wider tap targets for the header social icons on touch screens. */
+    .social-links a {
+      width: 2.25rem;
+      height: 2.25rem;
+    }
+
+    /* Tables in post content can exceed the viewport; let them scroll
+       horizontally instead of forcing the whole page to overflow. */
+    .content table {
+      display: block;
+      width: max-content;
+      max-width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* Slightly larger base type on phones improves readability of long posts. */
+    :root {
+      --font-scale: 1.05rem;
+    }
+
+    /* Tighten pagination so the two buttons + count fit comfortably on phones. */
+    .pagination {
+      gap: 0.5rem;
+    }
+
+    .pagination__link {
+      padding: 0.5rem 0.85rem;
+      font-size: 0.85em;
+    }
+
+    .pagination__status {
+      font-size: 0.72em;
+    }
   }
 }
 

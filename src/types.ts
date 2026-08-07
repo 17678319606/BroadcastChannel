@@ -36,6 +36,8 @@ export interface SeoMeta {
   nofollow?: string | boolean
   /** ISO datetime used for the article:published_time / article:modified_time OG tags. */
   publishedTime?: string
+  /** Absolute or protocol-relative image URL used as the OG / Twitter share card. */
+  image?: string
 }
 
 /** Parameters accepted by loadChannelDocument / getChannelInfo (single channel). */

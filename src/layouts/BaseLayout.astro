@@ -33,6 +33,7 @@ const {
   hasCustomTitle,
   linksPathname,
   seoParams,
+  shareImage,
   siteRootPathname,
   siteTitle,
   tagsPathname,
@@ -94,6 +95,9 @@ const skipLinkText = 'Skip to main content'
       twitter={{
         card: 'summary_large_image',
         creator: twitter ? `@${twitter}` : undefined,
+        title: seoParams.title,
+        description: seoParams.description,
+        image: shareImage,
       }}
       {...seoParams}
     />

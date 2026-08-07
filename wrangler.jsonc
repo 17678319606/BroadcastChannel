@@ -18,4 +18,18 @@
   "observability": {
     "enabled": true
   }
+  // --- Runtime variables (non-secret) ---
+  // Plaintext vars here are exposed to the app at runtime and are fine for public
+  // config like channel names. For anything sensitive, use `wrangler secret put`
+  // (or the Workers dashboard) instead — those are encrypted and not stored in this file.
+  // `keep_vars: true` above means dashboard/secret values are preserved across deploys.
+  //
+  // "vars": {
+  //   "CHANNELS": "miantiao_me,durov",
+  //   "SITE_TITLE": "",
+  //   "SITE_DESCRIPTION": "",
+  //   "LOCALE": "zh-CN",
+  //   "TIMEZONE": "Asia/Shanghai",
+  //   "PAGE_SIZE": "30"
+  // }
 }
