@@ -35,7 +35,7 @@ const isEdgeOne = provider === 'edgeone_pages'
   || Boolean(process.env.EDGEONE_PROJECT_ID)
   || Boolean(process.env.EO_MAKERS)
 
-const requestedProvider = process.env.SERVER_ADAPTER || (isEdgeOne ? 'edgeone' : provider)
+const requestedProvider = process.env.SERVER_ADAPTER || (isEdgeOne ? 'edgeone' : (provider || 'cloudflare_workers'))
 
 if (unsupportedProviders.has(requestedProvider)) {
   throw new Error('Cloudflare Pages is not supported. Use Cloudflare Workers with SERVER_ADAPTER=cloudflare_workers.')

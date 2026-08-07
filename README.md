@@ -85,28 +85,38 @@ For detailed tutorials, see [Deploy your Astro site](https://docs.astro.build/en
 1. `docker pull ghcr.io/miantiao-me/broadcastchannel:main`
 2. `docker run -d --name broadcastchannel -p 4321:4321 -e CHANNEL=miantiao_me ghcr.io/miantiao-me/broadcastchannel:main`
 
-### Serverless
+### Deploy to Cloudflare (recommended · free · no domain needed)
 
-1. [Fork](https://github.com/miantiao-me/BroadcastChannel/fork) this project to your GitHub
-2. Create a project on Cloudflare Workers/Netlify/Vercel/EdgeOne
-3. Select the `BroadcastChannel` project and the `Astro` framework
-4. Configure the environment variable `CHANNEL` (single channel) or `CHANNELS` (comma-separated, multiple channels aggregated). This is the minimal configuration; see [Configuration](#configuration) for more
-5. Save and deploy
-6. Bind a domain (optional)
-7. Update code, refer to the official GitHub documentation [Syncing a fork branch from the web UI](https://docs.github.com/pull-requests/collaborating-with-pull-requests/working-with-forks/syncing-a-fork#syncing-a-fork-branch-from-the-web-ui)
+Cloudflare **Workers** free tier is enough. After the first deploy you get a `*.workers.dev` subdomain automatically — no custom domain required.
 
-EdgeOne is supported and detected automatically through std-env's `edgeone_pages` provider or the platform-provided `EDGEONE_PROJECT_ID`/`EO_MAKERS` variables. Set `SERVER_ADAPTER` only when you need to override automatic adapter detection.
+**Option A — Connect GitHub and let Cloudflare build it (simplest, recommended)**
 
-Cloudflare Workers minimal commands:
+1. Make sure the code is on your GitHub (this project is already pushed to `17678319606/BroadcastChannel`).
+2. Open the Cloudflare dashboard → **Workers & Pages** → **Create** → choose **Connect to Git**.
+3. Authorize GitHub, pick the `BroadcastChannel` repository, branch `main`.
+4. Build settings:
+   - **Build command:** `pnpm install && pnpm build`
+   - **Output directory:** `dist` (auto-handled for Workers; can be left blank)
+   - **Framework preset:** `Astro` (usually auto-detected)
+5. Click **Deploy** and wait for the build to finish.
+6. After the first deploy, open the Worker → **Settings → Variables**, add your runtime variables (see **Configuration** below), then **deploy once more** so the variables take effect.
+7. Visit the assigned `*.workers.dev` URL.
+
+> The default build already targets the Cloudflare adapter, so the build command is just `pnpm build` — no extra environment variable is needed at build time.
+
+**Option B — Command line (wrangler)**
 
 ```bash
 pnpm exec wrangler login
-SERVER_ADAPTER=cloudflare_workers pnpm build
+pnpm build
 pnpm exec wrangler deploy
 ```
 
-Configure `CHANNEL` and other runtime values in the Workers dashboard or with `pnpm exec wrangler secret put CHANNEL`.
-Cloudflare Pages SSR is not supported with Astro 6 + @astrojs/cloudflare v13. Migrate Pages deployments to Workers.
+Add `CHANNEL` / `CHANNELS` and other variables in the dashboard (**Settings → Variables**) or with `pnpm exec wrangler secret put CHANNEL`.
+
+> Cloudflare **Pages** SSR is not supported by Astro 6 + @astrojs/cloudflare v13. Use **Workers**.
+
+EdgeOne is also supported and detected automatically via std-env's `edgeone_pages` provider or the `EDGEONE_PROJECT_ID` / `EO_MAKERS` variables.
 
 ## ⚒️ Configuration
 

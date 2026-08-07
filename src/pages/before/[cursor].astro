@@ -6,9 +6,17 @@ import type { SeoMeta } from '../../types'
 const channel = await getChannelInfo({
   before: decodeCursorMap(Astro.params.cursor),
 })
+const pageParam = Math.max(1, Number(Astro.url.searchParams.get('p')) || 1)
 const pageSeo: SeoMeta = {
   noindex: true,
 }
 ---
 
-<PostsPage channel={channel} pageClass="feed" pageHeading={channel.title} pageSeo={pageSeo} pageType="home" />
+<PostsPage
+  channel={channel}
+  pageClass="feed"
+  pageHeading={channel.title}
+  pageSeo={pageSeo}
+  pageType="home"
+  page={pageParam}
+/>

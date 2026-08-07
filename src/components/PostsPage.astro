@@ -17,6 +17,7 @@ const {
   pageHeading,
   pageSeo,
   pageType,
+  page = 1,
 } = Astro.props as {
   channel: ChannelInfo
   before?: boolean
@@ -26,6 +27,7 @@ const {
   pageHeading?: string
   pageSeo?: SeoMeta
   pageType: 'home' | 'post' | 'page'
+  page?: number
 }
 
 // Slice the aggregated feed to PAGE_SIZE. The pagination cursor MUST be built
@@ -49,8 +51,15 @@ const afterCursor = (() => {
   const map = buildChannelCursor(posts, 'after')
   return map ? encodeCursorMap(map) : ''
 })()
-const olderHref = beforeCursor ? new URL(`before/${beforeCursor}`, Astro.url).toString() : ''
-const newerHref = afterCursor ? new URL(`after/${afterCursor}`, Astro.url).toString() : ''
+// Current pagination depth (1 = newest page). Threaded through the older/newer
+// links via ?p=N so visitors always see "第 N 页" and can navigate intuitively.
+const currentPage = Math.max(1, Math.floor(Number(page)) || 1)
+const olderHref = beforeCursor ? `${new URL(`before/${beforeCursor}`, Astro.url).toString()}?p=${currentPage + 1}` : ''
+const newerHref = afterCursor
+  ? currentPage <= 2
+    ? '/'
+    : `${new URL(`after/${afterCursor}`, Astro.url).toString()}?p=${currentPage - 1}`
+  : ''
 const hasOlderPosts = showOlder && Boolean(beforeCursor)
 const hasNewerPosts = showNewer && Boolean(afterCursor)
 
@@ -160,7 +169,7 @@ const jsonLd =
           <span class="pagination__spacer" aria-hidden="true" />
         )}
         <span class="pagination__status" aria-hidden="true">
-          {posts.length} 条
+          第 {currentPage} 页 · {posts.length} 条
         </span>
         {hasOlderPosts ? (
           <a
