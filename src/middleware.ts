@@ -1,3 +1,4 @@
+import process from 'node:process'
 import { defineMiddleware } from 'astro:middleware'
 
 function getEncodedTagSearchQuery(pathname: string): string {
@@ -25,6 +26,20 @@ export const onRequest = defineMiddleware(async (context, next) => {
   context.locals.SITE_URL = `${import.meta.env.SITE ?? ''}${import.meta.env.BASE_URL}`
   context.locals.RSS_URL = `${context.locals.SITE_URL}rss.xml`
   context.locals.RSS_PREFIX = ''
+
+  // Cloudflare Workers exposes runtime variables (configured in the dashboard or
+  // wrangler `vars`) via `Astro.locals.runtime.env` — NOT via `import.meta.env`
+  // (build-time only) nor `process.env`. Bridge them into `process.env` so the rest
+  // of the app, which resolves env through `getEnv` (process.env first), picks them
+  // up at runtime. Idempotent: only fills keys that are currently unset.
+  const runtimeEnv = (context.locals as { runtime?: { env?: Record<string, unknown> } }).runtime?.env
+  if (runtimeEnv && typeof process !== 'undefined') {
+    for (const [key, value] of Object.entries(runtimeEnv)) {
+      if (typeof value === 'string' && process.env[key] === undefined) {
+        process.env[key] = value
+      }
+    }
+  }
 
   const querySearch = context.url.searchParams.get('q') || ''
   const legacyTagSearch = getEncodedTagSearchQuery(context.url.pathname)

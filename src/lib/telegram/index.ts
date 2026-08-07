@@ -70,7 +70,10 @@ export async function getChannelInfo(params: AggregatedChannelInfoParams = {}): 
   const channels = getChannelList(import.meta.env)
 
   if (channels.length === 0) {
-    throw new Error('Missing required env: CHANNEL or CHANNELS')
+    // No channels configured — return an empty feed instead of throwing, so a
+    // misconfiguration shows a blank site rather than a 500.
+    const siteTitle = getEnv(import.meta.env, 'SITE_TITLE') || ''
+    return { posts: [], title: siteTitle, description: '', descriptionHTML: null, avatar: undefined }
   }
 
   const results = await Promise.all(
