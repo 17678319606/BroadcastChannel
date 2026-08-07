@@ -1,0 +1,21 @@
+---
+// SSR 500 error page: surface the real error so it is visible in the HTTP
+// response body (curl / Cloudflare log) instead of an empty 500.
+const error = (Astro.props.error ?? {}) as { message?: string; stack?: string }
+const payload = {
+  message: error.message ?? 'Unknown error',
+  stack: (error.stack ?? '').split('\n').slice(0, 8),
+}
+---
+
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>500 - Server Error</title>
+  </head>
+  <body>
+    <h1>500 - Server Error</h1>
+    <pre id="err">{JSON.stringify(payload, null, 2)}</pre>
+  </body>
+</html>
