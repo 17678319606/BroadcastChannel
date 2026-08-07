@@ -9,7 +9,7 @@ const channel = await getChannelInfoCached(
   {
     q,
   },
-  getKVBinding(Astro.locals),
+  getKVBinding(),
 )
 const pageSeo: SeoMeta = {
   title: q,

@@ -7,7 +7,7 @@ export const GET: APIRoute = async (Astro) => {
   const siteUrl = resolveSiteUrl(Astro.locals.SITE_URL, Astro.url.origin)
   const rawCursor = Astro.params.cursor
   const before = rawCursor === 'latest' || !rawCursor ? {} : decodeCursorMap(rawCursor)
-  const channel = await getChannelInfoCached({ before }, getKVBinding(Astro.locals))
+  const channel = await getChannelInfoCached({ before }, getKVBinding())
   const posts = channel.posts || []
 
   const xmlUrls = posts.map(post => `

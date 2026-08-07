@@ -3,7 +3,7 @@ import PostsPage from '../components/PostsPage.astro'
 import { getChannelInfoCached } from '../lib/telegram'
 import { getKVBinding } from '../lib/cloudflare'
 
-const channel = await getChannelInfoCached({}, getKVBinding(Astro.locals))
+const channel = await getChannelInfoCached({}, getKVBinding())
 ---
 
 <PostsPage channel={channel} after={false} pageClass="feed" pageHeading={channel.title} pageType="home" />

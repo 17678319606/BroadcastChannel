@@ -3,7 +3,7 @@ import PostsPage from '../../components/PostsPage.astro'
 import { getChannelInfoCached, getChannelPost } from '../../lib/telegram'
 import { getKVBinding } from '../../lib/cloudflare'
 
-const channelInfo = await getChannelInfoCached({}, getKVBinding(Astro.locals))
+const channelInfo = await getChannelInfoCached({}, getKVBinding())
 
 if (!Astro.params.id) {
   return Astro.redirect('/')

@@ -8,7 +8,7 @@ const channel = await getChannelInfoCached(
   {
     before: decodeCursorMap(Astro.params.cursor),
   },
-  getKVBinding(Astro.locals),
+  getKVBinding(),
 )
 const pageParam = Math.max(1, Number(Astro.url.searchParams.get('p')) || 1)
 const pageSeo: SeoMeta = {

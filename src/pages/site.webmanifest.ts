@@ -8,7 +8,7 @@ const FALLBACK_MANIFEST_NAME = 'BroadcastChannel'
 
 export const GET: APIRoute = async (context) => {
   const { SITE_URL } = context.locals
-  const channel = await getChannelInfoCached({}, getKVBinding(context.locals))
+  const channel = await getChannelInfoCached({}, getKVBinding())
   const absoluteSiteUrl = SITE_URL.startsWith('http') ? SITE_URL : new URL(SITE_URL, context.url.origin).toString()
   const staticProxy = getStaticProxy(import.meta.env)
   const siteName = channel.title || FALLBACK_MANIFEST_NAME

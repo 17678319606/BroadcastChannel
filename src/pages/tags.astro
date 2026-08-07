@@ -5,7 +5,7 @@ import { getChannelInfoCached } from '../lib/telegram'
 import { getKVBinding } from '../lib/cloudflare'
 import { getEnv, parseCsvList } from '../lib/env'
 
-const channel = await getChannelInfoCached({}, getKVBinding(Astro.locals))
+const channel = await getChannelInfoCached({}, getKVBinding())
 const pageSeo = { title: 'Tags' }
 const items = parseCsvList(getEnv(import.meta.env, 'TAGS')).map((tag) => ({
   href: `/search/result?q=${encodeURIComponent(`#${tag}`)}`,

@@ -12,7 +12,7 @@ export const GET: APIRoute = async (Astro) => {
   let cursor: Record<string, string> = {}
 
   for (let i = 0; i < MAX_SITEMAPS; i++) {
-    const channel = await getChannelInfoCached({ before: cursor }, getKVBinding(Astro.locals))
+    const channel = await getChannelInfoCached({ before: cursor }, getKVBinding())
     const posts = channel.posts || []
     if (posts.length === 0) {
       break

@@ -6,7 +6,7 @@ import { getFeedData } from '../lib/feed'
 import { sanitizeFeedHtml } from '../lib/sanitize'
 
 export const GET: APIRoute = async (context) => {
-  const { channel, posts, siteUrl, title } = await getFeedData(context, getKVBinding(context.locals))
+  const { channel, posts, siteUrl, title } = await getFeedData(context, getKVBinding())
 
   const response = await rss({
     title,

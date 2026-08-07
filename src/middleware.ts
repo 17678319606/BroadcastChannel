@@ -28,17 +28,26 @@ export const onRequest = defineMiddleware(async (context, next) => {
   context.locals.RSS_PREFIX = ''
 
   // Cloudflare Workers exposes runtime variables (configured in the dashboard or
-  // wrangler `vars`) via `Astro.locals.runtime.env` — NOT via `import.meta.env`
-  // (build-time only) nor `process.env`. Bridge them into `process.env` so the rest
-  // of the app, which resolves env through `getEnv` (process.env first), picks them
-  // up at runtime. Idempotent: only fills keys that are currently unset.
-  const runtimeEnv = (context.locals as { runtime?: { env?: Record<string, unknown> } }).runtime?.env
-  if (runtimeEnv && typeof process !== 'undefined') {
-    for (const [key, value] of Object.entries(runtimeEnv)) {
-      if (typeof value === 'string' && process.env[key] === undefined) {
-        process.env[key] = value
+  // wrangler `vars`) via the `cloudflare:workers` `env` module — NOT via
+  // `import.meta.env` (build-time only) nor `process.env`. Bridge them into
+  // `process.env` so the rest of the app, which resolves env through `getEnv`
+  // (process.env first), picks them up at runtime. Idempotent: only fills keys
+  // that are currently unset.
+  // Astro v6 removed `Astro.locals.runtime.env`; use `import('cloudflare:workers')`
+  // instead. Dynamic import keeps this file safe to load outside the Workers
+  // runtime (unit tests) — the import only runs while a request is handled.
+  try {
+    const { env } = await import('cloudflare:workers')
+    if (env && typeof process !== 'undefined') {
+      for (const [key, value] of Object.entries(env)) {
+        if (typeof value === 'string' && process.env[key] === undefined) {
+          process.env[key] = value
+        }
       }
     }
+  }
+  catch {
+    // Not running on Cloudflare — leave process.env as-is.
   }
 
   const querySearch = context.url.searchParams.get('q') || ''

@@ -5,7 +5,7 @@ import { getChannelInfoCached } from '../lib/telegram'
 import { getKVBinding } from '../lib/cloudflare'
 import { getEnv, parseDelimitedItems } from '../lib/env'
 
-const channel = await getChannelInfoCached({}, getKVBinding(Astro.locals))
+const channel = await getChannelInfoCached({}, getKVBinding())
 const pageSeo = { title: 'Links' }
 const links = parseDelimitedItems(getEnv(import.meta.env, 'LINKS'))
 
