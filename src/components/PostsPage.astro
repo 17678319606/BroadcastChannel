@@ -4,9 +4,9 @@ import AdSlot from '../components/AdSlot.astro'
 import PostEntry from '../components/PostEntry.astro'
 import { buildChannelCursor, encodeCursorMap } from '../lib/telegram'
 import { getAdEvery } from '../lib/ads'
+import { getPageSize } from '../lib/env'
 import type { ChannelInfo, SeoMeta } from '../types'
 
-const { SITE_URL } = Astro.locals
 const {
   channel,
   before: showOlder = true,
@@ -26,7 +26,13 @@ const {
   pageSeo?: SeoMeta
   pageType: 'home' | 'post' | 'page'
 }
-const posts = channel.posts ?? []
+
+// Slice the aggregated feed to PAGE_SIZE. The pagination cursor MUST be built
+// from this sliced window, not the full upstream list — otherwise "older"/"newer"
+// would jump to the absolute extremes of the feed instead of the next page.
+const pageSize = getPageSize(import.meta.env)
+const allPosts = channel.posts ?? []
+const posts = allPosts.slice(0, pageSize)
 
 const beforeCursor = (() => {
   const map = buildChannelCursor(posts, 'before')
@@ -36,6 +42,8 @@ const afterCursor = (() => {
   const map = buildChannelCursor(posts, 'after')
   return map ? encodeCursorMap(map) : ''
 })()
+const olderHref = beforeCursor ? new URL(`before/${beforeCursor}`, Astro.url).toString() : ''
+const newerHref = afterCursor ? new URL(`after/${afterCursor}`, Astro.url).toString() : ''
 const hasOlderPosts = showOlder && Boolean(beforeCursor)
 const hasNewerPosts = showNewer && Boolean(afterCursor)
 
@@ -66,7 +74,15 @@ const jsonLd =
     : undefined
 ---
 
-<BaseLayout channel={channel} pageClass={pageClass} seo={pageSeo} structuredData={jsonLd} pageType={pageType}>
+<BaseLayout
+  channel={channel}
+  pageClass={pageClass}
+  seo={pageSeo}
+  structuredData={jsonLd}
+  pageType={pageType}
+  prevUrl={hasNewerPosts ? newerHref : undefined}
+  nextUrl={hasOlderPosts ? olderHref : undefined}
+>
   {pageHeading ? <h1 class="sr-only">{pageHeading}</h1> : null}
   <slot name="header" />
   {
@@ -93,16 +109,37 @@ const jsonLd =
   {
     hasOlderPosts || hasNewerPosts ? (
       <nav class="pagination" aria-label="Pagination">
-        {hasOlderPosts ? (
-          <a href={`${SITE_URL}before/${beforeCursor}`} title="Older posts" aria-label="Older posts" class="older">
-            <span aria-hidden="true">←</span>
-          </a>
-        ) : null}
         {hasNewerPosts ? (
-          <a href={`${SITE_URL}after/${afterCursor}`} title="Newer posts" aria-label="Newer posts" class="newer">
+          <a
+            href={newerHref}
+            rel="prev"
+            class="pagination__link pagination__link--newer"
+            title="更新的内容"
+            aria-label="更新的内容"
+          >
+            <span aria-hidden="true">←</span>
+            <span class="pagination__label">更新</span>
+          </a>
+        ) : (
+          <span class="pagination__spacer" aria-hidden="true" />
+        )}
+        <span class="pagination__status" aria-hidden="true">
+          {posts.length} 条
+        </span>
+        {hasOlderPosts ? (
+          <a
+            href={olderHref}
+            rel="next"
+            class="pagination__link pagination__link--older"
+            title="更早的内容"
+            aria-label="更早的内容"
+          >
+            <span class="pagination__label">更早</span>
             <span aria-hidden="true">→</span>
           </a>
-        ) : null}
+        ) : (
+          <span class="pagination__spacer" aria-hidden="true" />
+        )}
       </nav>
     ) : null
   }

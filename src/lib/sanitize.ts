@@ -21,7 +21,7 @@ const contentSanitizeOptions = {
     'a': ['href', 'name', 'target', 'rel', 'title', 'class'],
     'audio': ['src', 'controls', 'preload'],
     'button': ['type', 'class', 'popovertarget', 'popovertargetaction', 'aria-label'],
-    'img': ['src', 'srcset', 'alt', 'title', 'width', 'height', 'loading', 'class'],
+    'img': ['src', 'srcset', 'alt', 'title', 'width', 'height', 'loading', 'decoding', 'fetchpriority', 'class'],
     'input': ['type', 'id', 'class', 'aria-label', 'aria-controls'],
     'label': ['for', 'class'],
     'source': ['src', 'srcset', 'type'],

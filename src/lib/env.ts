@@ -11,6 +11,23 @@ export const DEFAULT_TELEGRAM_HOST = 'telegram.me'
 export const CHANNELS_ENV = 'CHANNELS'
 const LEGACY_CHANNEL_ENV = 'CHANNEL'
 
+/** Number of posts rendered per feed page. */
+export const PAGE_SIZE_ENV = 'PAGE_SIZE'
+
+/**
+ * Resolve the page size for feed pagination.
+ * Defaults to 30; clamped to the safe range [10, 100] so a misconfigured
+ * value can never trigger an unbounded (and slow) fetch/render.
+ */
+export function getPageSize(env: Env | undefined): number {
+  const raw = getEnv(env, PAGE_SIZE_ENV)
+  const parsed = raw ? Number.parseInt(raw, 10) : 30
+  if (!Number.isFinite(parsed)) {
+    return 30
+  }
+  return Math.min(100, Math.max(10, parsed))
+}
+
 /**
  * Normalize a raw channel value into the bare Telegram username.
  * Accepts `t.me/foo`, `https://t.me/s/foo`, `foo/`, leading/trailing whitespace, etc.

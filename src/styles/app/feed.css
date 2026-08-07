@@ -60,6 +60,40 @@
 
   .post-content {
     padding-top: 1.25rem;
+    font-size: 1.04rem;
+    line-height: 1.78;
+    color: var(--text-color);
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .post-content p {
+    margin: 0 0 1rem;
+  }
+
+  .post-content a {
+    color: var(--link-color);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .post-content img,
+  .post-content video {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+  }
+
+  .post-content :where(ul, ol) {
+    padding-left: 1.4rem;
+    margin: 0 0 1rem;
+  }
+
+  .post-content :where(blockquote) {
+    margin: 0 0 1rem;
+    padding-left: 1rem;
+    border-left: 3px solid var(--border-color);
+    color: var(--muted-color);
   }
 
   .post-reactions,
@@ -141,23 +175,46 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin: 2rem 0 0;
+    gap: 0.75rem;
+    margin: 2.5rem 0 0.5rem;
   }
 
-  .pagination a {
+  .pagination__link {
     display: inline-flex;
-    width: 2rem;
-    height: 2rem;
     align-items: center;
-    justify-content: center;
-  }
-
-  .pagination a:hover {
+    gap: 0.4rem;
+    padding: 0.5rem 1.1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    background: var(--surface-color, #fff);
+    color: var(--link-color);
+    font-size: 0.92em;
     text-decoration: none;
+    transition:
+      background 0.15s ease,
+      border-color 0.15s ease,
+      color 0.15s ease;
   }
 
-  .pagination .newer {
+  .pagination__link:hover {
+    text-decoration: none;
+    border-color: var(--accent-color, #3b82f6);
+    background: var(--accent-background, #eff6ff);
+  }
+
+  .pagination__link--older {
     margin-left: auto;
+  }
+
+  .pagination__spacer {
+    flex: 1 1 auto;
+  }
+
+  .pagination__status {
+    font-size: 0.8em;
+    opacity: 0.5;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
   }
 
   .directory h1 {

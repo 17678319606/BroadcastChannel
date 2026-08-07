@@ -13,12 +13,16 @@ import { getPageSeo } from '../lib/seo'
 import type { ChannelInfo, SeoMeta } from '../types'
 
 const { SITE_URL, RSS_URL, RSS_PREFIX } = Astro.locals
-const { channel, pageClass, pageType, seo, structuredData } = Astro.props as {
+const { channel, pageClass, pageType, seo, structuredData, prevUrl, nextUrl } = Astro.props as {
   channel: ChannelInfo
   pageClass?: string
   pageType: 'home' | 'post' | 'page'
   seo?: SeoMeta
   structuredData?: Record<string, unknown>
+  /** Absolute URL of the previous (newer) feed page; rendered as <link rel="prev">. */
+  prevUrl?: string
+  /** Absolute URL of the next (older) feed page; rendered as <link rel="next">. */
+  nextUrl?: string
 }
 
 const locale = getEnv(import.meta.env, 'LOCALE')
@@ -79,6 +83,10 @@ const skipLinkText = 'Skip to main content'
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#ffffff" />
+    {/* Warm up connections to image hosts so post media and OG images start loading sooner. */}
+    <link rel="preconnect" href="https://cdn.t.me" crossorigin />
+    <link rel="preconnect" href="https://wsrv.nl" crossorigin />
+    <link rel="dns-prefetch" href="https://cdn.t.me" />
     <link rel="alternate" type="application/rss+xml" title={`${RSS_PREFIX}${channel?.title}`} href={RSS_URL} />
     <SEO
       titleTemplate={hasCustomTitle ? `%s | ${siteTitle}` : undefined}
@@ -89,6 +97,8 @@ const skipLinkText = 'Skip to main content'
       }}
       {...seoParams}
     />
+    {prevUrl && <link rel="prev" href={prevUrl} />}
+    {nextUrl && <link rel="next" href={nextUrl} />}
     {
       jsonLd && (
         <script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd).replace(/</g, '\\u003c')} />

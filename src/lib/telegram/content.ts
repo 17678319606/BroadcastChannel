@@ -98,5 +98,21 @@ export async function modifyHTMLContent($: CheerioAPI, content: MessageSelection
     }
   }
 
+  // Performance: lazy-load media below the fold. The very first image of the first
+  // post is the most likely LCP element, so load it eagerly with high priority.
+  for (const [imgIndex, imgNode] of content.find('img').toArray().entries()) {
+    const img = $(imgNode)
+    if (img.attr('loading')) {
+      // Preserve explicit hints (e.g. tg-emoji already sets loading="lazy").
+      continue
+    }
+    if (index === 0 && imgIndex === 0) {
+      img.attr('loading', 'eager').attr('fetchpriority', 'high').attr('decoding', 'async')
+    }
+    else {
+      img.attr('loading', 'lazy').attr('decoding', 'async')
+    }
+  }
+
   return content
 }

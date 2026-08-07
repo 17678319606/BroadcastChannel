@@ -3,6 +3,7 @@ import {
   getBooleanEnv,
   getChannelList,
   getEnv,
+  getPageSize,
   getPrimaryChannel,
   getStaticProxy,
   getTargetWhitelist,
@@ -195,5 +196,36 @@ describe('getChannelList', () => {
   it('exposes the first channel as the primary channel', () => {
     vi.stubEnv('CHANNELS', 'first,second')
     expect(getPrimaryChannel({})).toBe('first')
+  })
+})
+
+describe('getPageSize', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  it('defaults to 30 when PAGE_SIZE is unset', () => {
+    vi.stubEnv('PAGE_SIZE', undefined)
+    expect(getPageSize({})).toBe(30)
+  })
+
+  it('parses a valid PAGE_SIZE value', () => {
+    vi.stubEnv('PAGE_SIZE', '50')
+    expect(getPageSize({})).toBe(50)
+  })
+
+  it('clamps values below the minimum (10) up to 10', () => {
+    vi.stubEnv('PAGE_SIZE', '3')
+    expect(getPageSize({})).toBe(10)
+  })
+
+  it('clamps values above the maximum (100) down to 100', () => {
+    vi.stubEnv('PAGE_SIZE', '500')
+    expect(getPageSize({})).toBe(100)
+  })
+
+  it('falls back to 30 for non-numeric input', () => {
+    vi.stubEnv('PAGE_SIZE', 'abc')
+    expect(getPageSize({})).toBe(30)
   })
 })
