@@ -1,7 +1,8 @@
 import type { APIContext } from 'astro'
 import type { ChannelInfo, Post } from '../types'
+import type { KVNamespaceLike } from './cloudflare'
 import { sanitizeFeedHtml } from './sanitize'
-import { getChannelInfo } from './telegram'
+import { getChannelInfoCached } from './telegram'
 
 export interface FeedData {
   channel: ChannelInfo
@@ -50,11 +51,11 @@ export function buildJsonFeed({ channel, posts, siteUrl, title }: FeedData): Jso
   }
 }
 
-export async function getFeedData(context: APIContext): Promise<FeedData> {
+export async function getFeedData(context: APIContext, kv?: KVNamespaceLike): Promise<FeedData> {
   const tag = context.url.searchParams.get('tag')
-  const channel = await getChannelInfo({
+  const channel = await getChannelInfoCached({
     q: tag ? `#${tag}` : '',
-  })
+  }, kv)
   const siteUrl = new URL(context.locals.SITE_URL, context.url.origin)
   siteUrl.search = ''
 

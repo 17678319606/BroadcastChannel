@@ -1,12 +1,16 @@
 ---
 import PostsPage from '../../components/PostsPage.astro'
-import { getChannelInfo } from '../../lib/telegram'
+import { getChannelInfoCached } from '../../lib/telegram'
+import { getKVBinding } from '../../lib/cloudflare'
 import type { SeoMeta } from '../../types'
 
 const q = Astro.url.searchParams.get('q') || ''
-const channel = await getChannelInfo({
-  q,
-})
+const channel = await getChannelInfoCached(
+  {
+    q,
+  },
+  getKVBinding(Astro.locals),
+)
 const pageSeo: SeoMeta = {
   title: q,
   noindex: true,

@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro'
+import { getKVBinding } from '../lib/cloudflare'
 import { getSitemapUrl, resolveSiteUrl } from '../lib/seo'
-import { buildChannelCursor, encodeCursorMap, getChannelInfo } from '../lib/telegram'
+import { buildChannelCursor, encodeCursorMap, getChannelInfoCached } from '../lib/telegram'
 
 const MAX_SITEMAPS = 50
 
@@ -11,7 +12,7 @@ export const GET: APIRoute = async (Astro) => {
   let cursor: Record<string, string> = {}
 
   for (let i = 0; i < MAX_SITEMAPS; i++) {
-    const channel = await getChannelInfo({ before: cursor })
+    const channel = await getChannelInfoCached({ before: cursor }, getKVBinding(Astro.locals))
     const posts = channel.posts || []
     if (posts.length === 0) {
       break

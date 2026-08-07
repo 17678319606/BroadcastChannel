@@ -28,6 +28,27 @@ export function getPageSize(env: Env | undefined): number {
   return Math.min(100, Math.max(10, parsed))
 }
 
+/** TTL (seconds) for the KV/memory feed cache. */
+export const FEED_CACHE_TTL_ENV = 'FEED_CACHE_TTL'
+
+/**
+ * Resolve the feed-cache TTL in seconds.
+ * Defaults to 300 when unset or non-numeric; a valid numeric value is clamped to
+ * [30, 3600]. Lower values increase upstream fetches (and KV writes on the free
+ * tier), so the floor guards against accidental abuse.
+ */
+export function getFeedCacheTtl(env: Env | undefined): number {
+  const raw = getEnv(env, FEED_CACHE_TTL_ENV)
+  if (raw === undefined) {
+    return 300
+  }
+  const parsed = Number.parseInt(raw, 10)
+  if (!Number.isFinite(parsed)) {
+    return 300
+  }
+  return Math.min(3600, Math.max(30, parsed))
+}
+
 /**
  * Normalize a raw channel value into the bare Telegram username.
  * Accepts `t.me/foo`, `https://t.me/s/foo`, `foo/`, leading/trailing whitespace, etc.

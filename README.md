@@ -116,6 +116,20 @@ Add `CHANNEL` / `CHANNELS` and other variables in the dashboard (**Settings → 
 
 > Cloudflare **Pages** SSR is not supported by Astro 6 + @astrojs/cloudflare v13. Use **Workers**.
 
+**Optional: enable KV feed cache (free speed + resilience boost)**
+
+Cloudflare KV is **free** on the Workers free plan (1 GB storage, 100k reads/day, 1k writes/day, free egress). The app uses it to cache the aggregated feed so repeat visits and the RSS/sitemap share one upstream fetch, and it can serve a slightly stale feed if Telegram is briefly down.
+
+1. Create a KV namespace once (copy the `id` it prints):
+   ```bash
+   pnpm exec wrangler kv namespace create FEED_CACHE
+   ```
+2. In `wrangler.jsonc`, uncomment the `kv_namespaces` block and paste that id.
+3. (Optional) set `FEED_CACHE_TTL` (seconds, default `300`, range `30`–`3600`) in **Settings → Variables**.
+4. Redeploy.
+
+Without this binding the site still works — it falls back to an in-memory cache plus the edge HTTP cache (`s-maxage=300`).
+
 EdgeOne is also supported and detected automatically via std-env's `edgeone_pages` provider or the `EDGEONE_PROJECT_ID` / `EO_MAKERS` variables.
 
 ## ⚒️ Configuration

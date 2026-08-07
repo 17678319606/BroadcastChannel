@@ -1,5 +1,7 @@
 import type { AggregatedChannelInfoParams, ChannelCursorMap, ChannelInfo, GetChannelInfoParams, Post } from '../../types'
-import { getBooleanEnv, getChannelList, getEnv, getPrimaryChannel } from '../env'
+import type { KVNamespaceLike } from '../cloudflare'
+import { withFeedCache } from '../cache/feedCache'
+import { getBooleanEnv, getChannelList, getEnv, getFeedCacheTtl, getPrimaryChannel } from '../env'
 import { isBlockedContent } from '../safety'
 import { modifyHTMLContent } from './content'
 import { extractPost } from './parse'
@@ -190,4 +192,31 @@ export function buildChannelCursor(posts: Post[], mode: 'before' | 'after'): Cha
   }
 
   return cursor
+}
+
+/**
+ * Cached variant of {@link getChannelInfo}.
+ *
+ * Only the "latest" feed (no before/after cursor) is cached — cursor pagination is
+ * infrequent and caching it would multiply KV writes past the free-tier daily limit.
+ * When a cursor is present, this forwards straight to getChannelInfo().
+ *
+ * The cache sits behind Cloudflare KV when the `FEED_CACHE` binding is configured,
+ * and falls back to an in-memory store otherwise. On upstream failure it serves a
+ * slightly stale value (stale-while-error) so the site stays up.
+ */
+export async function getChannelInfoCached(
+  params: AggregatedChannelInfoParams = {},
+  kv?: KVNamespaceLike,
+): Promise<ChannelInfo> {
+  const hasCursor = (params.before && Object.keys(params.before).length > 0)
+    || (params.after && Object.keys(params.after).length > 0)
+  if (hasCursor) {
+    return getChannelInfo(params)
+  }
+
+  const channels = getChannelList(import.meta.env)
+  const key = `feed:v1:${channels.join(',')}:${params.q ?? ''}`
+  const ttl = getFeedCacheTtl(import.meta.env)
+  return withFeedCache(key, ttl, kv, () => getChannelInfo(params))
 }

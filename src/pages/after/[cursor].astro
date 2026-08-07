@@ -1,11 +1,15 @@
 ---
 import PostsPage from '../../components/PostsPage.astro'
-import { decodeCursorMap, getChannelInfo } from '../../lib/telegram'
+import { decodeCursorMap, getChannelInfoCached } from '../../lib/telegram'
+import { getKVBinding } from '../../lib/cloudflare'
 import type { SeoMeta } from '../../types'
 
-const channel = await getChannelInfo({
-  after: decodeCursorMap(Astro.params.cursor),
-})
+const channel = await getChannelInfoCached(
+  {
+    after: decodeCursorMap(Astro.params.cursor),
+  },
+  getKVBinding(Astro.locals),
+)
 const pageParam = Math.max(1, Number(Astro.url.searchParams.get('p')) || 1)
 const pageSeo: SeoMeta = {
   noindex: true,

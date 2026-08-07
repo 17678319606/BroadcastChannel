@@ -1,8 +1,9 @@
 import type { APIRoute } from 'astro'
+import { getKVBinding } from '../lib/cloudflare'
 import { buildJsonFeed, getFeedData } from '../lib/feed'
 
 export const GET: APIRoute = async (context) => {
-  const feed = buildJsonFeed(await getFeedData(context))
+  const feed = buildJsonFeed(await getFeedData(context, getKVBinding(context.locals)))
 
   return new Response(JSON.stringify(feed), {
     headers: {

@@ -1,11 +1,12 @@
 import type { APIRoute } from 'astro'
 import rss from '@astrojs/rss'
+import { getKVBinding } from '../lib/cloudflare'
 import { getBooleanEnv } from '../lib/env'
 import { getFeedData } from '../lib/feed'
 import { sanitizeFeedHtml } from '../lib/sanitize'
 
 export const GET: APIRoute = async (context) => {
-  const { channel, posts, siteUrl, title } = await getFeedData(context)
+  const { channel, posts, siteUrl, title } = await getFeedData(context, getKVBinding(context.locals))
 
   const response = await rss({
     title,

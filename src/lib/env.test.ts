@@ -3,6 +3,7 @@ import {
   getBooleanEnv,
   getChannelList,
   getEnv,
+  getFeedCacheTtl,
   getPageSize,
   getPrimaryChannel,
   getStaticProxy,
@@ -227,5 +228,32 @@ describe('getPageSize', () => {
   it('falls back to 30 for non-numeric input', () => {
     vi.stubEnv('PAGE_SIZE', 'abc')
     expect(getPageSize({})).toBe(30)
+  })
+})
+
+describe('getFeedCacheTtl', () => {
+  it('defaults to 300 seconds when FEED_CACHE_TTL is unset', () => {
+    vi.stubEnv('FEED_CACHE_TTL', undefined)
+    expect(getFeedCacheTtl({})).toBe(300)
+  })
+
+  it('parses a valid FEED_CACHE_TTL value', () => {
+    vi.stubEnv('FEED_CACHE_TTL', '600')
+    expect(getFeedCacheTtl({})).toBe(600)
+  })
+
+  it('clamps values below the minimum (30) up to 30', () => {
+    vi.stubEnv('FEED_CACHE_TTL', '5')
+    expect(getFeedCacheTtl({})).toBe(30)
+  })
+
+  it('clamps values above the maximum (3600) down to 3600', () => {
+    vi.stubEnv('FEED_CACHE_TTL', '9999')
+    expect(getFeedCacheTtl({})).toBe(3600)
+  })
+
+  it('falls back to 300 for non-numeric input', () => {
+    vi.stubEnv('FEED_CACHE_TTL', 'xyz')
+    expect(getFeedCacheTtl({})).toBe(300)
   })
 })

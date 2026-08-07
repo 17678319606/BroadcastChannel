@@ -1,10 +1,11 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro'
 import DirectorySection from '../components/DirectorySection.astro'
-import { getChannelInfo } from '../lib/telegram'
+import { getChannelInfoCached } from '../lib/telegram'
+import { getKVBinding } from '../lib/cloudflare'
 import { getEnv, parseDelimitedItems } from '../lib/env'
 
-const channel = await getChannelInfo()
+const channel = await getChannelInfoCached({}, getKVBinding(Astro.locals))
 const pageSeo = { title: 'Links' }
 const links = parseDelimitedItems(getEnv(import.meta.env, 'LINKS'))
 

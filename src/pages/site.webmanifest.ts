@@ -1,13 +1,14 @@
 import type { APIRoute } from 'astro'
+import { getKVBinding } from '../lib/cloudflare'
 import { getStaticProxy } from '../lib/env'
-import { getChannelInfo } from '../lib/telegram'
+import { getChannelInfoCached } from '../lib/telegram'
 
 const MANIFEST_THEME_COLOR = '#ffffff'
 const FALLBACK_MANIFEST_NAME = 'BroadcastChannel'
 
 export const GET: APIRoute = async (context) => {
   const { SITE_URL } = context.locals
-  const channel = await getChannelInfo()
+  const channel = await getChannelInfoCached({}, getKVBinding(context.locals))
   const absoluteSiteUrl = SITE_URL.startsWith('http') ? SITE_URL : new URL(SITE_URL, context.url.origin).toString()
   const staticProxy = getStaticProxy(import.meta.env)
   const siteName = channel.title || FALLBACK_MANIFEST_NAME

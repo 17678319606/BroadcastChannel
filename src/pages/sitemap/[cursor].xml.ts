@@ -1,12 +1,13 @@
 import type { APIRoute } from 'astro'
+import { getKVBinding } from '../../lib/cloudflare'
 import { getSitemapUrl, resolveSiteUrl } from '../../lib/seo'
-import { decodeCursorMap, getChannelInfo } from '../../lib/telegram'
+import { decodeCursorMap, getChannelInfoCached } from '../../lib/telegram'
 
 export const GET: APIRoute = async (Astro) => {
   const siteUrl = resolveSiteUrl(Astro.locals.SITE_URL, Astro.url.origin)
   const rawCursor = Astro.params.cursor
   const before = rawCursor === 'latest' || !rawCursor ? {} : decodeCursorMap(rawCursor)
-  const channel = await getChannelInfo({ before })
+  const channel = await getChannelInfoCached({ before }, getKVBinding(Astro.locals))
   const posts = channel.posts || []
 
   const xmlUrls = posts.map(post => `
