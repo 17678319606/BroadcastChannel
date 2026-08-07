@@ -89,18 +89,20 @@ For detailed tutorials, see [Deploy your Astro site](https://docs.astro.build/en
 
 Cloudflare **Workers** free tier is enough. After the first deploy you get a `*.workers.dev` subdomain automatically — no custom domain required.
 
+> ⚠️ **Deploy as a Worker, NOT Pages.** Astro 7 + @astrojs/cloudflare v14 removed Cloudflare Pages support. A Pages project fails the build with `Cloudflare Pages is not supported. Use Cloudflare Workers with SERVER_ADAPTER=cloudflare_workers.` If your URL ends in `.pages.dev`, you picked Pages by accident — delete it and create a **Worker** instead.
+
 **Option A — Connect GitHub and let Cloudflare build it (simplest, recommended)**
 
-1. Make sure the code is on your GitHub (this project is already pushed to `17678319606/BroadcastChannel`).
-2. Open the Cloudflare dashboard → **Workers & Pages** → **Create** → choose **Connect to Git**.
+1. Make sure the code is on your GitHub (already pushed to `17678319606/BroadcastChannel`).
+2. Open the Cloudflare dashboard → **Workers & Pages** → **Create** → **Connect to Git**.
 3. Authorize GitHub, pick the `BroadcastChannel` repository, branch `main`.
-4. Build settings:
-   - **Build command:** `pnpm install && pnpm build`
-   - **Output directory:** `dist` (auto-handled for Workers; can be left blank)
-   - **Framework preset:** `Astro` (usually auto-detected)
-5. Click **Deploy** and wait for the build to finish.
-6. After the first deploy, open the Worker → **Settings → Variables**, add your runtime variables (see **Configuration** below), then **deploy once more** so the variables take effect.
-7. Visit the assigned `*.workers.dev` URL.
+4. When the flow asks what to deploy, choose **Worker** (the server-side-app option). **Do not** pick "Pages".
+5. Build settings:
+   - **Build command:** `pnpm build` (Cloudflare installs dependencies automatically; the repo's `wrangler.jsonc` already points the Worker at the built `dist/server/entry.mjs`).
+   - Leave the deploy step at Cloudflare's default — it runs `wrangler deploy` for you.
+6. Click **Deploy** and wait for the build to finish.
+7. After the first deploy, open the Worker → **Settings → Variables**, add `CHANNELS` (and optionally `SITE_TITLE` / `SITE_DESCRIPTION`) from **Configuration** below, then **deploy once more** so the variables take effect.
+8. Visit the assigned `*.workers.dev` URL.
 
 > The default build already targets the Cloudflare adapter, so the build command is just `pnpm build` — no extra environment variable is needed at build time.
 
@@ -113,8 +115,6 @@ pnpm exec wrangler deploy
 ```
 
 Add `CHANNEL` / `CHANNELS` and other variables in the dashboard (**Settings → Variables**) or with `pnpm exec wrangler secret put CHANNEL`.
-
-> Cloudflare **Pages** SSR is not supported by Astro 6 + @astrojs/cloudflare v13. Use **Workers**.
 
 **Optional: enable KV feed cache (free speed + resilience boost)**
 

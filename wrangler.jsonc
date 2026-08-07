@@ -1,22 +1,22 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "broadcast-channel",
-  // Astro's Cloudflare adapter rewrites this to dist/server/wrangler.json after build.
+  // Astro @astrojs/cloudflare v14 entrypoint (the Vite plugin bundles it into dist/server at build time).
   "main": "@astrojs/cloudflare/entrypoints/server",
   "compatibility_date": "2026-06-13",
   "compatibility_flags": [
     "nodejs_compat"
   ],
   "keep_vars": true,
+  "observability": {
+    "enabled": true
+  },
   "cache": {
     "enabled": true
   },
   "assets": {
     "binding": "ASSETS",
-    "directory": "./dist"
-  },
-  "observability": {
-    "enabled": true
+    "directory": "./dist/client"
   }
   // --- Optional: Cloudflare KV feed cache (FREE on the Workers free tier) ---
   // Uncomment and paste the namespace id after creating it once with:
