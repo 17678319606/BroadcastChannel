@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "broadcast-channel",
+  "name": "123yunpan",
   // Astro @astrojs/cloudflare v14 entrypoint (the Vite plugin bundles it into dist/server at build time).
   "main": "@astrojs/cloudflare/entrypoints/server",
   "compatibility_date": "2026-06-13",
