@@ -46,6 +46,13 @@ export function resolvePagination(context: APIContext, total: number, pageSize: 
 
   const buildPageUrl = (target: number | null): string => {
     const url = new URL(context.url.toString())
+    // The feed only honours `tag` (filter) and `page` (pagination). Drop any
+    // other params — e.g. cache-busters like `?ts=` — so the generated
+    // self/prev/next URLs stay clean and don't leak into downstream fetches.
+    for (const key of [...url.searchParams.keys()]) {
+      if (key !== 'tag')
+        url.searchParams.delete(key)
+    }
     if (target === null) {
       url.searchParams.delete('page')
     }

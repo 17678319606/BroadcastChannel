@@ -1,7 +1,8 @@
+import type { APIContext } from 'astro'
 import type { ChannelInfo, Post } from '../types'
 import type { RssPagination } from './feed'
 import { describe, expect, it } from 'vitest'
-import { buildJsonFeed } from './feed'
+import { buildJsonFeed, resolvePagination } from './feed'
 
 function makeChannel(): ChannelInfo {
   return {
@@ -177,5 +178,30 @@ describe('json feed builder', () => {
 
     expect(feed.items).toHaveLength(2)
     expect(feed.items.map(i => i.title)).toEqual(['Post 1', 'Post 3'])
+  })
+})
+
+describe('resolvePagination', () => {
+  const ctx = (url: string): APIContext => ({ url: new URL(url) }) as APIContext
+
+  it('preserves the tag filter but drops stray params (e.g. cache-busters)', () => {
+    const p = resolvePagination(ctx('https://ex.com/rss.json?tag=foo&ts=123&page=2'), 200, 30)
+
+    expect(p.page).toBe(2)
+    expect(p.totalPages).toBe(7)
+    expect(p.selfUrl).toBe('https://ex.com/rss.json?tag=foo&page=2')
+    // page 2 → prev drops the page param entirely.
+    expect(p.prevUrl).toBe('https://ex.com/rss.json?tag=foo')
+    expect(p.nextUrl).toBe('https://ex.com/rss.json?tag=foo&page=3')
+  })
+
+  it('falls back to page 1 for non-numeric / missing page param', () => {
+    const p = resolvePagination(ctx('https://ex.com/rss.json?tag=bar&page=abc'), 50, 30)
+
+    expect(p.page).toBe(1)
+    expect(p.totalPages).toBe(2)
+    expect(p.selfUrl).toBe('https://ex.com/rss.json?tag=bar')
+    expect(p.nextUrl).toBe('https://ex.com/rss.json?tag=bar&page=2')
+    expect(p.prevUrl).toBeUndefined()
   })
 })
