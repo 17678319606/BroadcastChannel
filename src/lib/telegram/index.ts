@@ -65,10 +65,13 @@ export async function getChannelPost(id: string): Promise<Post | null> {
  * filtering, etc. — and so navigation works even for posts outside the cached
  * "latest" window.
  *
- * The target post is parsed from its own single-message document, while the
- * `before` / `after` windows (strictly older / newer) supply neighbours. The
- * target itself never appears in those windows, so it must be fetched on its
- * own.
+ * Two neighbouring windows are fetched: `before = id+1` (posts with id ≤ id,
+ * i.e. the target plus everything older) and `after = id-1` (posts with id ≥ id,
+ * i.e. the target plus everything newer). Because both windows are full channel
+ * pages (not the stripped single-message embed view), the target post — and its
+ * tags — are captured correctly, which also powers the related-posts panel.
+ * Blocked (ad / spam) neighbours are filtered out so they never surface as
+ * prev/next/related.
  */
 export async function getPostContext(id: string): Promise<{
   post: Post | null
@@ -81,31 +84,35 @@ export async function getPostContext(id: string): Promise<{
   if (!resolvedChannel || !messageId || !/^\d+$/.test(messageId)) {
     return { post: null, prev: null, next: null, related: [] }
   }
+  const numId = Number(messageId)
 
-  // Parallel fetches: the target post's own document + the older/newer windows.
-  const [targetDoc, beforeInfo, afterInfo] = await Promise.all([
-    loadChannelDocument({ channel: resolvedChannel, id: messageId }).catch(() => null),
-    loadSingleChannel({ channel: resolvedChannel, before: messageId }).catch(() => null),
-    loadSingleChannel({ channel: resolvedChannel, after: messageId }).catch(() => null),
+  const [olderInfo, newerInfo] = await Promise.all([
+    loadSingleChannel({ channel: resolvedChannel, before: String(numId + 1) }).catch(() => null),
+    loadSingleChannel({ channel: resolvedChannel, after: String(numId - 1) }).catch(() => null),
   ])
 
-  if (!targetDoc) {
+  // Drop blocked (ad / spam) neighbours and the target itself from the neighbour
+  // pools — the target is resolved separately below.
+  const isBlocked = (candidate: Post): boolean =>
+    isBlockedContent(`${candidate.title}\n${candidate.text}`, import.meta.env)
+  const olderPosts = (olderInfo?.posts ?? []).filter(p => p.id !== id && !isBlocked(p))
+  const newerPosts = (newerInfo?.posts ?? []).filter(p => p.id !== id && !isBlocked(p))
+
+  // The target appears in both windows; dedupe by id, keeping the richer
+  // (tag-bearing) copy if both windows contributed one.
+  const byId = new Map<string, Post>()
+  for (const candidate of [...olderPosts, ...newerPosts, ...(olderInfo?.posts ?? []), ...(newerInfo?.posts ?? [])]) {
+    if (candidate.id === id) {
+      const existing = byId.get(id)
+      if (!existing || (existing.tags.length === 0 && candidate.tags.length > 0)) {
+        byId.set(id, candidate)
+      }
+    }
+  }
+  const post = byId.get(id) ?? null
+  if (!post) {
     return { post: null, prev: null, next: null, related: [] }
   }
-
-  const post = await extractPost(targetDoc.$, null, {
-    channel: targetDoc.channel,
-    telegramHost: targetDoc.telegramHost,
-    staticProxy: targetDoc.staticProxy,
-    reactionsEnabled: targetDoc.reactionsEnabled,
-  })
-  if (!isRenderablePost(post)) {
-    return { post: null, prev: null, next: null, related: [] }
-  }
-
-  const beforePosts = beforeInfo?.posts ?? []
-  const afterPosts = afterInfo?.posts ?? []
-  const all = [...beforePosts, ...afterPosts]
 
   const toNumeric = (candidate: Post): number => {
     const mid = splitCompositeId(candidate.id).messageId
@@ -113,18 +120,19 @@ export async function getPostContext(id: string): Promise<{
   }
 
   // prev = closest OLDER post (largest id strictly below the current one).
-  const prev = beforePosts.length
-    ? beforePosts.reduce((best, candidate) => (toNumeric(candidate) > toNumeric(best) ? candidate : best))
+  const prev = olderPosts.length
+    ? olderPosts.reduce((best, candidate) => (toNumeric(candidate) > toNumeric(best) ? candidate : best))
     : null
   // next = closest NEWER post (smallest id strictly above the current one).
-  const next = afterPosts.length
-    ? afterPosts.reduce((best, candidate) => (toNumeric(candidate) < toNumeric(best) ? candidate : best))
+  const next = newerPosts.length
+    ? newerPosts.reduce((best, candidate) => (toNumeric(candidate) < toNumeric(best) ? candidate : best))
     : null
 
   // related = other posts sharing at least one tag, ranked by shared-tag count.
+  const allNeighbours = [...olderPosts, ...newerPosts]
   const tagSet = new Set(post.tags)
   const related = tagSet.size
-    ? all
+    ? allNeighbours
         .filter(item => item.id !== id && item.tags.some(tag => tagSet.has(tag)))
         .map(item => ({ item, score: item.tags.filter(tag => tagSet.has(tag)).length }))
         .sort((a, b) => b.score - a.score)
