@@ -145,6 +145,40 @@
       padding: 0.1em 0.15em;
       margin: -0.1em -0.15em;
     }
+
+    /* Post detail navigation + related panel: tighten spacing on small screens. */
+    .post-nav {
+      gap: 0.65rem;
+      margin-top: 1.25rem;
+    }
+
+    .post-nav__link {
+      padding: 0.7rem 0.8rem;
+    }
+
+    .post-nav__title {
+      font-size: 0.88em;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
+    }
+
+    .related-posts {
+      margin-top: 1.5rem;
+      padding: 1rem 1rem;
+    }
+
+    .related-posts__heading {
+      font-size: 1rem;
+      margin-bottom: 0.6rem;
+    }
+
+    .related-posts__link {
+      padding: 0.5rem 0.05rem;
+    }
+
+    .related-posts__title {
+      font-size: 0.95em;
+    }
   }
 }
 

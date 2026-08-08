@@ -58,6 +58,71 @@ export async function getChannelPost(id: string): Promise<Post | null> {
 }
 
 /**
+ * Load a single post together with its reading context for the detail page:
+ * the immediate previous (older) and next (newer) posts, plus tag-based related
+ * posts. This intentionally fetches fresh (never the cached aggregate feed) so
+ * the detail view always reflects the latest parsing — link restoration, ad
+ * filtering, etc. — and so navigation works even for posts outside the cached
+ * "latest" window.
+ *
+ * Neighbours are resolved by fetching one page of posts `before` and one page
+ * `after` the target message id; the closest older / newer id wins.
+ */
+export async function getPostContext(id: string): Promise<{
+  post: Post | null
+  prev: Post | null
+  next: Post | null
+  related: Post[]
+}> {
+  const { channel, messageId } = splitCompositeId(id)
+  const resolvedChannel = channel || getPrimaryChannel(import.meta.env)
+  if (!resolvedChannel || !messageId || !/^\d+$/.test(messageId)) {
+    return { post: null, prev: null, next: null, related: [] }
+  }
+
+  const [beforeInfo, afterInfo] = await Promise.all([
+    loadSingleChannel({ channel: resolvedChannel, before: messageId }).catch(() => null),
+    loadSingleChannel({ channel: resolvedChannel, after: messageId }).catch(() => null),
+  ])
+
+  const beforePosts = beforeInfo?.posts ?? []
+  const afterPosts = afterInfo?.posts ?? []
+  const all = [...beforePosts, ...afterPosts]
+
+  const post = all.find(item => item.id === id) ?? null
+  if (!post) {
+    return { post: null, prev: null, next: null, related: [] }
+  }
+
+  const toNumeric = (candidate: Post): number => {
+    const mid = splitCompositeId(candidate.id).messageId
+    return Number(mid) || 0
+  }
+
+  // prev = closest OLDER post (largest id strictly below the current one).
+  const prev = beforePosts.length
+    ? beforePosts.reduce((best, candidate) => (toNumeric(candidate) > toNumeric(best) ? candidate : best))
+    : null
+  // next = closest NEWER post (smallest id strictly above the current one).
+  const next = afterPosts.length
+    ? afterPosts.reduce((best, candidate) => (toNumeric(candidate) < toNumeric(best) ? candidate : best))
+    : null
+
+  // related = other posts sharing at least one tag, ranked by shared-tag count.
+  const tagSet = new Set(post.tags)
+  const related = tagSet.size
+    ? all
+        .filter(item => item.id !== id && item.tags.some(tag => tagSet.has(tag)))
+        .map(item => ({ item, score: item.tags.filter(tag => tagSet.has(tag)).length }))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 6)
+        .map(entry => entry.item)
+    : []
+
+  return { post, prev, next, related }
+}
+
+/**
  * Load and aggregate posts from every configured channel.
  *
  * - With no `before`/`after` cursor, each channel's latest posts are fetched.
@@ -219,7 +284,7 @@ export async function getChannelInfoCached(
   }
 
   const channels = getChannelList(import.meta.env)
-  const key = `feed:v1:${channels.join(',')}:${params.q ?? ''}`
+  const key = `feed:v2:${channels.join(',')}:${params.q ?? ''}`
   const ttl = getFeedCacheTtl(import.meta.env)
   return withFeedCache(key, ttl, kv, () => getChannelInfo(params))
 }

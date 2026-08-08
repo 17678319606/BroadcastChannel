@@ -1,15 +1,17 @@
 ---
 import PostsPage from '../../components/PostsPage.astro'
-import { getChannelInfoCached, getChannelPost } from '../../lib/telegram'
+import { getChannelInfoCached, getPostContext } from '../../lib/telegram'
 import { getKVBinding } from '../../lib/cloudflare'
-
-const channelInfo = await getChannelInfoCached({}, getKVBinding())
 
 if (!Astro.params.id) {
   return Astro.redirect('/')
 }
 
-const post = channelInfo.posts.find((item) => item.id === Astro.params.id) ?? (await getChannelPost(Astro.params.id))
+// Fresh, accurate post + navigation context (prev/next/related). Always fetched
+// so the latest parsing (link restoration, ad filtering) is applied and so older
+// posts outside the cached "latest" window still get correct neighbours.
+const context = await getPostContext(Astro.params.id)
+const post = context.post
 
 if (!post) {
   return new Response('Not Found', {
@@ -20,8 +22,11 @@ if (!post) {
   })
 }
 
+// Site-level metadata (title / avatar / description) comes from the cached
+// aggregate — cheap and stable across detail pages.
+const siteInfo = await getChannelInfoCached({}, getKVBinding())
 const channel = {
-  ...(channelInfo || {}),
+  ...(siteInfo || {}),
   posts: [post],
 }
 ---
@@ -34,4 +39,7 @@ const channel = {
   pageHeading={post.title || channel.title}
   pageSeo={{ title: post.title, text: post.description, publishedTime: post.datetime }}
   pageType="post"
+  prevPost={context.prev}
+  nextPost={context.next}
+  relatedPosts={context.related}
 />

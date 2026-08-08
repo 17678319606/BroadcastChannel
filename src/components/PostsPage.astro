@@ -4,9 +4,10 @@ import AdSlot from '../components/AdSlot.astro'
 import PostEntry from '../components/PostEntry.astro'
 import { buildChannelCursor, encodeCursorMap } from '../lib/telegram'
 import { getAdEvery } from '../lib/ads'
-import { getPageSize } from '../lib/env'
+import { getEnv, getPageSize } from '../lib/env'
 import { buildSocialImage, extractFirstImageUrl } from '../lib/seo'
-import type { ChannelInfo, SeoMeta } from '../types'
+import { formatPostTime } from '../lib/post-ui'
+import type { ChannelInfo, SeoMeta, Post } from '../types'
 
 const {
   channel,
@@ -18,6 +19,9 @@ const {
   pageSeo,
   pageType,
   page = 1,
+  prevPost,
+  nextPost,
+  relatedPosts = [],
 } = Astro.props as {
   channel: ChannelInfo
   before?: boolean
@@ -28,7 +32,25 @@ const {
   pageSeo?: SeoMeta
   pageType: 'home' | 'post' | 'page'
   page?: number
+  prevPost?: Post | null
+  nextPost?: Post | null
+  relatedPosts?: Post[]
 }
+
+// Related posts get a relative timestamp for the detail-page recommendation list.
+const locale = getEnv(import.meta.env, 'LOCALE')
+const timezone = getEnv(import.meta.env, 'TIMEZONE')
+const relatedWithTime = relatedPosts.length
+  ? await Promise.all(
+      relatedPosts.map(async (post) => ({
+        post,
+        time: await formatPostTime(post.datetime, timezone, locale),
+      })),
+    )
+  : []
+
+const detailPrevUrl = prevPost ? `${Astro.locals.SITE_URL}posts/${prevPost.id}` : undefined
+const detailNextUrl = nextPost ? `${Astro.locals.SITE_URL}posts/${nextPost.id}` : undefined
 
 // Slice the aggregated feed to PAGE_SIZE. The pagination cursor MUST be built
 // from this sliced window, not the full upstream list — otherwise "older"/"newer"
@@ -125,8 +147,8 @@ const jsonLd =
   seo={seoWithImage}
   structuredData={jsonLd}
   pageType={pageType}
-  prevUrl={hasNewerPosts ? newerHref : undefined}
-  nextUrl={hasOlderPosts ? olderHref : undefined}
+  prevUrl={isDetail ? detailPrevUrl : hasNewerPosts ? newerHref : undefined}
+  nextUrl={isDetail ? detailNextUrl : hasOlderPosts ? olderHref : undefined}
 >
   {pageHeading ? <h1 class="sr-only">{pageHeading}</h1> : null}
   <slot name="header" />
@@ -149,6 +171,49 @@ const jsonLd =
         ))}
       </ol>
     )
+  }
+
+  {
+    isDetail && (prevPost || nextPost) ? (
+      <nav class="post-nav" aria-label="文章导航">
+        {prevPost ? (
+          <a class="post-nav__link post-nav__link--prev" href={`/posts/${prevPost.id}`} rel="prev">
+            <span class="post-nav__dir">← 上一篇</span>
+            <span class="post-nav__title">{prevPost.title || prevPost.text?.slice(0, 60)}</span>
+          </a>
+        ) : (
+          <span class="post-nav__placeholder" aria-hidden="true" />
+        )}
+        {nextPost ? (
+          <a class="post-nav__link post-nav__link--next" href={`/posts/${nextPost.id}`} rel="next">
+            <span class="post-nav__dir">下一篇 →</span>
+            <span class="post-nav__title">{nextPost.title || nextPost.text?.slice(0, 60)}</span>
+          </a>
+        ) : (
+          <span class="post-nav__placeholder" aria-hidden="true" />
+        )}
+      </nav>
+    ) : null
+  }
+
+  {
+    isDetail && relatedWithTime.length > 0 ? (
+      <section class="related-posts" aria-label="相关推荐">
+        <h2 class="related-posts__heading">相关推荐</h2>
+        <ul class="related-posts__list">
+          {relatedWithTime.map(({ post, time }) => (
+            <li class="related-posts__item">
+              <a class="related-posts__link" href={`/posts/${post.id}`}>
+                <span class="related-posts__title">{post.title || post.text?.slice(0, 80)}</span>
+                <time class="related-posts__time" datetime={post.datetime} title={time}>
+                  {time}
+                </time>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </section>
+    ) : null
   }
 
   {
@@ -188,5 +253,5 @@ const jsonLd =
       </nav>
     ) : null
   }
-  {!hasOlderPosts && posts.length > 0 && <p class="end-of-feed">— 已到底部 —</p>}
+  {!isDetail && !hasOlderPosts && posts.length > 0 && <p class="end-of-feed">— 已到底部 —</p>}
 </BaseLayout>
