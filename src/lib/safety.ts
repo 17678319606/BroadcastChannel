@@ -21,8 +21,9 @@ const BUILTIN_PATTERNS: RegExp[] = [
   /性爱/,
   /成人视频/,
   /成人网站/,
-  /AV女优/,
+  /AV女优/i,
   /卖淫/,
+
   // Gambling / lottery / betting (Chinese slang + unambiguous casino games)
   /赌博/,
   /博彩/,
@@ -36,6 +37,7 @@ const BUILTIN_PATTERNS: RegExp[] = [
   /牛牛棋牌/,
   /网投平台/,
   /彩票(?:预测|内幕|计划|带单)/,
+
   // Gambling slang & specific illegal-lottery game names (high precision)
   /菠菜/,
   /葡京/,
@@ -56,7 +58,77 @@ const BUILTIN_PATTERNS: RegExp[] = [
   /重庆时时彩/,
   /一分快三/,
   /分分彩/,
-  /(注册|开户).{0,4}送彩金/,
+
+  // Online casino / electronic gaming platforms (from leaked ads)
+  /PG电子/i,
+  /PA真人/i,
+  /电子游戏/,
+  /电子爆/,
+  /电子钱包.*?(?:存取|存款|出款)/,
+  /真人娱乐/,
+  /真人百家/,
+  /体育(?:H5|PC端|APP|全站).*?(?:入口|下载)/i,
+  /小程序.*?免实名.*?免绑卡/,
+  /小飞机.*?飞投/,
+  /飞投.*?入口/,
+  /匿名首选/,
+
+  // Deposit / bonus bait patterns (high-precision gambling red flags)
+  /(?:首存|充值|注册|开户).{0,6}(?:送|加赠|奖励|彩金|返利|领)/,
+  /首存最高领/,
+  /存款彩金/,
+  /每日存款彩金/,
+  /签到彩金/,
+  /日存彩金/,
+  /周流水彩金/,
+  /每笔存款.*?加赠/,
+  /彩金.*?每日送/,
+  /彩金.*?不停/,
+  /加赠\d+%/,
+  /豪礼大放送/,
+  /全网独家.{0,4}一家/,
+  /全网独此一家/,
+
+  // Luxury / sex bait used in gambling ads (from 182体育 / U99 ad copy)
+  /高端嫩模/,
+  /劳力士手表/,
+  /奔驰E300/i,
+  /美女主播.*?在线互动/,
+  /官方直播火热/,
+
+  // Domain / brand blacklists (exact-match anchors to avoid false positives)
+  /1820036\.com/i,
+  /182体育/,
+  /U99\.COM/i,
+  /u99top/i,
+  /mk\.bet/i,
+
+  // Telegram gambling channel handles
+  /@(?:u99top|vvip11|U99GBH|u99com99)/i,
+
+  // Registration-channel bait (CNY, USDT, "exclusive" channels)
+  /(?:C\s*N\s*Y|USDT).{0,6}专属注册通道/i,
+  /U存U取/i,
+  /存U取/i,
+
+  // Safety-theater phrases unique to illegal gambling operators
+  /不限IP/i,
+  /免实名/,
+  /免绑卡/,
+  /免手机号码/,
+  /线上万担保/,
+  /拒绝野鸡台/,
+  /千万域名/,
+  /豪客之/,
+  /体育足球单首单包赔/,
+  /易换支付钱包/,
+  /资金池储备/,
+  /大额出款无忧/,
+  /大额出款额外奖励/,
+  /世界杯.*?指定平台/,
+  /开云集团旗下.*?娱乐平台/,
+
+  // English casino/betting domains (with word boundaries)
   /(?<![a-z])casino/i,
   /(?<![a-z])gambling/i,
   /(?<![a-z])porn/i,
@@ -64,6 +136,7 @@ const BUILTIN_PATTERNS: RegExp[] = [
   /(?<![a-z])1xbet/i,
   /(?<![a-z])stake\.com/i,
   /(?<![a-z])888casino/i,
+
   // Drugs
   /毒品/,
   /冰毒/,
@@ -74,6 +147,7 @@ const BUILTIN_PATTERNS: RegExp[] = [
   /代孕/,
   /迷药/,
   /催情/,
+
   // Gray / black-market finance (loan sharks, pig-butchering, unauthorized forex, etc.)
   /套路贷/,
   /714高炮/,
@@ -90,6 +164,7 @@ const BUILTIN_PATTERNS: RegExp[] = [
   /手机卡收购/,
   /私募.*?基金/,
   /(?:境外.*?)?(?:博彩|赌博).*(?:返利|获利|带单)/,
+
   // Investment / recruitment scams (pig-butchering & pyramid schemes)
   /带单老师/,
   /导师带单/,

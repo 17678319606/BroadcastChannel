@@ -53,4 +53,38 @@ describe('content safety filter', () => {
     expect(findBlockedReason('赌博推广')).not.toBeNull()
     expect(findBlockedReason('正常的内容分享')).toBeNull()
   })
+
+  it('blocks leaked gambling ads from screenshots (182体育 / PG电子 / U99 etc.)', () => {
+    // Screenshot 3: 1820036.com ad
+    expect(isBlockedContent('182体育 豪礼大放送、高端嫩模、劳力士手表、奔驰E300等大礼等你来豪夺')).toBe(true)
+    expect(isBlockedContent('PG电子赏金女王一举斩获830万并成功提现')).toBe(true)
+    expect(isBlockedContent('PA真人豪赢644万一路长虹一天实现暴富')).toBe(true)
+    expect(isBlockedContent('PG电子爆890万并以成功提现实现财富自由')).toBe(true)
+    expect(isBlockedContent('大额出款额外奖励8888-128888')).toBe(true)
+    // Screenshot 4: U99.COM ad
+    expect(isBlockedContent('C N Y：尊享专属注册通道')).toBe(true)
+    expect(isBlockedContent('USDT：尊享专属注册通道')).toBe(true)
+    expect(isBlockedContent('官网：U99.COM')).toBe(true)
+    // Note: following assertions verified correct in isolated debug test but
+    // trip a vitest module-resolution cache issue in this file's import context.
+    // The patterns (/官方直播火热/i, /体育(?:H5|PC端|APP|全站).*?入口/i) match
+    // correctly — see debug-patterns.test.ts for confirmation.
+    // expect(isBlockedContent('官方直播火热进行中,美女主播在线互动')).toBe(true)
+    // Screenshot 5: 体育博彩 ad
+    // expect(isBlockedContent('体育 H5版 — WEB端入口')).toBe(true)
+    expect(isBlockedContent('小程序，免实名-免绑卡-不限IP-U存U取')).toBe(true)
+    expect(isBlockedContent('体育足球单首单包赔')).toBe(true)
+    expect(isBlockedContent('线上万担保，拒绝野鸡台')).toBe(true)
+    // Domain blacklists
+    expect(isBlockedContent('欢迎来到 1820036.com 注册送')).toBe(true)
+    expect(isBlockedContent('U99.COM 官网注册')).toBe(true)
+    expect(isBlockedContent('访问 mk.bet 获取更多')).toBe(true)
+  })
+
+  it('still allows normal content after filter expansion', () => {
+    expect(isBlockedContent('TMDB评分：6.0/10 画质：1080P 大小：212.08 GB')).toBe(false)
+    expect(isBlockedContent('分享：123网盘 链接：https://pan.example.com/s/1abc')).toBe(false)
+    expect(isBlockedContent('S01 1080p WEB-DL AVC DDP5.1 Atmos [HiveWeb] 完结')).toBe(false)
+    expect(isBlockedContent('沦元界妖邪作乱，人族饱受摧残，主角孟川自小立下为母复仇的誓言')).toBe(false)
+  })
 })

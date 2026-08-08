@@ -1,16 +1,19 @@
 import { load } from 'cheerio'
 import { describe, expect, it } from 'vitest'
 import { sanitizeContentHtml, sanitizeFeedHtml } from '../sanitize'
-import { classifyLink, cleanBodyContent, modifyHTMLContent } from './content'
+import { cleanBodyContent, classifyLink, modifyHTMLContent } from './content'
 
 describe('telegram HTML content', () => {
   it('emits and preserves the stable code block hooks', async () => {
     const $ = load('<div class="message"><pre>def greet(name):<br>    return f"Hello {name}"</pre></div>')
     const content = $('.message')
+
     await modifyHTMLContent($, content)
+
     const html = content.html() ?? ''
     const pre = content.find('pre')
     const code = pre.children('code')
+
     expect(pre.hasClass('code')).toBe(true)
     expect(code.hasClass('language-python')).toBe(true)
     expect(code.find('.token').length).toBeGreaterThan(0)
@@ -21,38 +24,55 @@ describe('telegram HTML content', () => {
 })
 
 describe('cleanBodyContent', () => {
-  it.skip('strips media elements while preserving text (vitest cache issue — verified correct in debug test)', () => {
+  it('strips images, videos, audio and tg-emoji', () => {
     const $ = load('<div><img src="photo.jpg" /><video src="movie.mp4" /><audio src="sound.mp3" /><tg-emoji emoji-id="abc" /><p>Hello world</p></div>')
     const root = $('div')
+    const htmlBefore = root.html()
     cleanBodyContent($, root)
+    // Media elements must be gone
     expect(root.find('img').length).toBe(0)
     expect(root.find('video').length).toBe(0)
     expect(root.find('audio').length).toBe(0)
     expect(root.find('tg-emoji').length).toBe(0)
+    // Non-media text content must survive (the exact mechanism may vary by
+    // cheerio version, but the visible text must remain intact).
+    expect(root.text().trim()).toBeTruthy()
     expect(root.text().trim()).toContain('Hello world')
   })
 
   it('removes empty media wrappers to prevent blank gaps', () => {
-    const $ = load('<div><div class="tgme_widget_message_photo_wrap"><img src="photo.jpg" /></div><p>Text after photo</p><figure><video src="vid.mp4" /></figure><p>Text after video</p></div>')
+    const $ = load(`
+      <div>
+        <div class="tgme_widget_message_photo_wrap"><img src="photo.jpg" /></div>
+        <p>Text after photo</p>
+        <figure class="tgme_widget_message_video_wrap"><video src="vid.mp4" /></figure>
+        <p>Text after video</p>
+      </div>
+    `)
     const content = $('div')
     cleanBodyContent($, content)
+    // Wrappers should be removed (empty after media removal)
     expect(content.find('.tgme_widget_message_photo_wrap').length).toBe(0)
     expect(content.find('figure').length).toBe(0)
+    // Text paragraphs must remain
     expect(content.text()).toContain('Text after photo')
     expect(content.text()).toContain('Text after video')
   })
 
   it('unwraps t.me links without proxy destination', () => {
     const $ = load('<div><a href="https://t.me/somechannel/123">click here</a></div>')
-    cleanBodyContent($, $('div'))
-    expect($('div').html()).not.toContain('<a ')
-    expect($('div').text()).toContain('click here')
+    const content = $('div')
+    cleanBodyContent($, content)
+    // Should be unwrapped to plain text (no <a> tag)
+    expect(content.html()).not.toContain('<a ')
+    expect(content.text()).toContain('click here')
   })
 
   it('rewrites t.me proxy links to real destination', () => {
     const $ = load('<div><a href="https://t.me/url?url=https%3A%2F%2Fexample.com%2Fresource">分享：123网盘</a></div>')
-    cleanBodyContent($, $('div'))
-    const link = $('div').find('a')
+    const content = $('div')
+    cleanBodyContent($, content)
+    const link = content.find('a')
     expect(link.length).toBe(1)
     expect(link.attr('href')).toBe('https://example.com/resource')
     expect(link.text()).toContain('123网盘')
@@ -60,37 +80,67 @@ describe('cleanBodyContent', () => {
 
   it('preserves ordinary http(s) links untouched', () => {
     const $ = load('<div><a href="https://123pan.com/s/abc">链接：123网盘</a></div>')
-    cleanBodyContent($, $('div'))
-    const link = $('div').find('a')
+    const content = $('div')
+    cleanBodyContent($, content)
+    const link = content.find('a')
     expect(link.length).toBe(1)
     expect(link.attr('href')).toBe('https://123pan.com/s/abc')
     expect(link.text()).toContain('123网盘')
   })
 
+  it('removes empty media wrapper containers to avoid blank gaps', () => {
+    const $ = load(`
+      <div>
+        <div class="tgme_widget_message_photo_wrap"><img src="photo.jpg" /></div>
+        <p>Text after image</p>
+        <figure class="tgme_widget_message_video_wrap"><video src="vid.mp4" /></figure>
+        <p>Text after video</p>
+      </div>
+    `)
+    const content = $('div')
+    cleanBodyContent($, content)
+    // The wrappers should be removed (they became empty after img/video removal)
+    expect(content.find('.tgme_widget_message_photo_wrap').length).toBe(0)
+    expect(content.find('.tgme_widget_message_video_wrap').length).toBe(0)
+    expect(content.find('figure').length).toBe(0)
+    // Text content should remain
+    expect(content.text()).toContain('Text after image')
+    expect(content.text()).toContain('Text after video')
+  })
+
   it('reveals tg-spoiler as plain text', () => {
     const $ = load('<div><tg-spoiler>secret message</tg-spoiler></div>')
-    cleanBodyContent($, $('div'))
-    expect($('div').text()).toContain('secret message')
-    expect($('div').find('tg-spoiler').length).toBe(0)
+    const content = $('div')
+    cleanBodyContent($, content)
+    expect(content.text()).toContain('secret message')
+    expect(content.find('tg-spoiler').length).toBe(0)
   })
 })
 
 describe('classifyLink', () => {
-  it('classifies normal URLs as keep', () => {
+  it('returns keep for normal http(s) URLs', () => {
     expect(classifyLink('https://example.com')).toBe('keep')
     expect(classifyLink('http://example.org/path')).toBe('keep')
   })
-  it('classifies unsafe schemes as unwrap', () => {
+
+  it('returns unwrap for tg:// scheme', () => {
     expect(classifyLink('tg://resolve?domain=test')).toBe('unwrap')
+  })
+
+  it('returns unwrap for javascript: scheme', () => {
     expect(classifyLink('javascript:alert(1)')).toBe('unwrap')
   })
-  it('classifies t.me channel links as unwrap', () => {
+
+  it('returns unwrap for plain t.me channel links', () => {
     expect(classifyLink('https://t.me/somechannel')).toBe('unwrap')
+    expect(classifyLink('https://telegram.me/channel')).toBe('unwrap')
   })
-  it('classifies t.me proxy URLs as rewrite', () => {
+
+  it('returns rewrite for t.me proxy URLs with url param', () => {
     expect(classifyLink('https://t.me/url?url=https%3A%2F%2Fexample.com')).toBe('rewrite')
   })
-  it('classifies empty href as keep', () => {
+
+  it('returns keep for empty href', () => {
     expect(classifyLink('')).toBe('keep')
   })
 })

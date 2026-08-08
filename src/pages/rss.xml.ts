@@ -15,7 +15,7 @@ export const GET: APIRoute = async (context) => {
     trailingSlash: false,
     stylesheet: getBooleanEnv(import.meta.env, 'RSS_BEAUTIFY') ? '/rss.xsl' : undefined,
     items: posts.map(item => ({
-      link: `posts/${item.id}`,
+      link: new URL(`posts/${item.id}`, siteUrl).toString(),
       title: item.title,
       description: item.description,
       pubDate: new Date(item.datetime),

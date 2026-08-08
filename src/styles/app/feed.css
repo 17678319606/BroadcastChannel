@@ -38,9 +38,7 @@
   }
 
   .post-meta {
-    display: flex;
-    align-items: center;
-    font-size: 0.82em;
+    display: none;
   }
 
   .post-meta p {
@@ -87,16 +85,11 @@
   }
 
   .post-source-sep {
-    margin: 0 0.35rem;
-    opacity: 0.5;
+    display: none;
   }
 
   .post-source {
-    opacity: 0.7;
-  }
-
-  .post-source:hover {
-    opacity: 1;
+    display: none;
   }
 
   .timeline-dot {
@@ -142,13 +135,8 @@
   }
 
   .post-reactions,
-  .post-tags,
   .post-comments {
     padding-top: 1rem;
-  }
-
-  .post-tags {
-    margin: 0;
   }
 
   .post-comments iframe {
@@ -197,39 +185,45 @@
     font-variant-numeric: tabular-nums;
   }
 
-  .tags {
+  /* Card footer: time (left) + read-original link (right). */
+  .post-footer {
     display: flex;
     align-items: center;
+    justify-content: space-between;
+    margin-top: 1rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid color-mix(in srgb, var(--text-color) 10%, transparent);
+    font-size: 0.8em;
     gap: 0.5rem;
-    flex-wrap: wrap;
   }
 
-  .tags a {
-    display: inline-block;
-    padding: 0.2rem 0.65rem;
-    border: 1px solid var(--card-border);
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--link-color) 7%, #fff);
+  .post-time {
+    color: var(--muted-color);
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  .post-time:hover {
     color: var(--link-color);
-    font-size: 0.78em;
-    text-decoration: none;
-    transition:
-      background 0.15s ease,
-      border-color 0.15s ease;
+    text-decoration: underline;
   }
 
-  .tags a:hover {
-    background: color-mix(in srgb, var(--link-color) 15%, #fff);
-    border-color: color-mix(in srgb, var(--link-color) 35%, var(--card-border));
-    text-decoration: none;
+  .post-time time {
+    font-variant-numeric: tabular-nums;
   }
 
-  .tag-icon {
-    display: none;
-    width: 1rem;
-    height: 1rem;
-    background: url('../../assets/tags.png') center / contain no-repeat;
-    opacity: 0.3;
+  .post-read-more {
+    color: var(--link-color);
+    text-decoration: none;
+    font-weight: 500;
+    white-space: nowrap;
+    letter-spacing: 0.02em;
+    transition: color 0.15s ease;
+  }
+
+  .post-read-more:hover {
+    color: var(--heading-color);
+    text-decoration: underline;
   }
 
   .pagination {

@@ -107,13 +107,22 @@ export async function modifyHTMLContent($: CheerioAPI, content: MessageSelection
  *
  * - Removes images / video / audio / stickers / custom-emoji.
  * - Reveals spoilers as plain text.
- * - Unwraps links that jump to Telegram (t.me / tg:// / telegram.org) or carry
- *   unsafe schemes (javascript:, data:, blob:), keeping the visible text.
+ * - For links that jump to Telegram (t.me / tg:// / telegram.org) or carry
+ *   unsafe schemes (javascript:, data:, blob:): if the t.me URL contains a
+ *   proxied `url=` parameter pointing to a real website, rewrite the href to
+ *   that destination; otherwise unwrap the tag keeping only visible text.
  * - Leaves ordinary http(s) website links and internal site links intact.
  */
 export function cleanBodyContent($: CheerioAPI, content: MessageSelection): MessageSelection {
   content
     .find('img, video, audio, source, tg-emoji, .tgme_widget_message_sticker, .tgme_widget_message_tgsticker_wrap, .js-videosticker_video, .tgme_widget_message_roundvideo_wrap')
+    .remove()
+
+  // Remove empty wrapper containers left behind after media removal (e.g.
+  // .tgme_widget_message_photo_wrap, figure, div) to avoid large blank gaps.
+  content
+    .find('.tgme_widget_message_photo_wrap, .tgme_widget_message_video_wrap, .tgme_widget_message_roundvideo_wrap, figure')
+    .filter((_, el) => $(el).text().trim() === '' && $(el).children().length === 0)
     .remove()
 
   for (const spoiler of content.find('tg-spoiler').toArray()) {
@@ -123,27 +132,95 @@ export function cleanBodyContent($: CheerioAPI, content: MessageSelection): Mess
   for (const linkNode of content.find('a').toArray()) {
     const link = $(linkNode)
     const href = (link.attr('href') ?? '').trim()
-    if (shouldUnwrapLink(href)) {
+    const action = classifyLink(href)
+    if (action === 'unwrap') {
       link.replaceWith(link.text())
+    }
+    else if (action === 'rewrite') {
+      // t.me proxy URL that embeds a real destination — rewrite href.
+      try {
+        const url = new URL(href, 'https://example.com')
+        const realUrl = extractTgProxyDestination(url)
+        if (realUrl) {
+          link.attr('href', realUrl)
+        }
+        else {
+          link.replaceWith(link.text())
+        }
+      }
+      catch {
+        link.replaceWith(link.text())
+      }
     }
   }
 
   return content
 }
 
-/** True for links that jump to Telegram or use an unsafe scheme and should be unwrapped. */
-function shouldUnwrapLink(href: string): boolean {
+/** Classification for how to handle a link href. */
+type LinkAction = 'keep' | 'unwrap' | 'rewrite'
+
+/**
+ * Classify a link href and optionally annotate the link element.
+ *
+ * - 'keep'   : ordinary http(s) link — leave untouched.
+ * - 'unwrap' : TG jump-link or unsafe scheme with no recoverable destination —
+ *             strip the <a> tag, keep visible text.
+ * - 'rewrite': t.me proxy URL that embeds a real destination in its query
+ *             string — the caller should replace href with the real URL.
+ */
+export function classifyLink(href: string): LinkAction {
   if (!href) {
-    return false
+    return 'keep'
   }
+  // Unsafe schemes — always unwrap.
   if (/^(?:tg:|javascript:|data:|blob:)/i.test(href)) {
-    return true
+    return 'unwrap'
   }
   try {
     const url = new URL(href, 'https://example.com')
-    return /^(?:t\.me|telegram\.me|telegram\.org)$/i.test(url.hostname)
+    const hostname = url.hostname.toLowerCase()
+
+    // Direct Telegram domain links (channel messages, user profiles, etc.)
+    if (/^(?:t\.me|telegram\.me|telegram\.org)$/.test(hostname)) {
+      // Check for t.me proxy pattern: t.me/url?url=<encoded_destination>
+      const realUrl = extractTgProxyDestination(url)
+      if (realUrl) {
+        return 'rewrite'
+      }
+      return 'unwrap'
+    }
+
+    return 'keep'
   }
   catch {
-    return false
+    return 'keep'
   }
+}
+
+/**
+ * Attempt to extract a real destination URL from a t.me proxy/redirect URL.
+ *
+ * Handles patterns like:
+ * - `https://t.me/url?url=https%3A%2F%2Fexample.com`
+ * - `https://t.me/some_channel?url=...`
+ *
+ * Returns the decoded destination string, or null if none found.
+ */
+function extractTgProxyDestination(tgUrl: URL): string | null {
+  // Try the well-known t.me/url?url= proxy endpoint first.
+  const urlParam = tgUrl.searchParams.get('url')
+  if (urlParam) {
+    try {
+      // Validate it looks like a real http(s) URL after decoding.
+      const decoded = decodeURIComponent(urlParam)
+      if (/^https?:\/\//i.test(decoded)) {
+        return decoded
+      }
+    }
+    catch {
+      // Malformed encoded URL — ignore.
+    }
+  }
+  return null
 }

@@ -100,6 +100,17 @@
     .pagination__status {
       font-size: 0.72em;
     }
+
+    /* Card footer: keep time + read-more comfortable on small screens. */
+    .post-footer {
+      margin-top: 0.85rem;
+      padding-top: 0.65rem;
+      font-size: 0.78em;
+    }
+
+    .post-read-more {
+      font-size: 0.95em;
+    }
   }
 }
 

@@ -1,7 +1,7 @@
 ---
 import { getBooleanEnv, getEnv } from '../lib/env'
 import { sanitizeContentHtml } from '../lib/sanitize'
-import { formatPostTime, getReactionLabel, getTagHref, paidReactionClass } from '../lib/post-ui'
+import { formatPostTime, getReactionLabel, paidReactionClass } from '../lib/post-ui'
 import type { Post } from '../types'
 
 const locale = getEnv(import.meta.env, 'LOCALE')
@@ -19,22 +19,14 @@ const timeago = await formatPostTime(post.datetime, timezone, locale)
 const contentHtml = sanitizeContentHtml(post.content)
 const hasContent = contentHtml.length > 0
 const hasReactions = Boolean(reactionsEnabled && post.reactions?.length > 0)
-const hasTags = post.tags.length > 0
+const detailHref = `${SITE_URL}posts/${post.id}`
 ---
 
 <article class="post-entry" style={{ 'view-transition-name': `post-${post.id}` }}>
-  <div class="post-meta">
-    <span class="timeline-dot" aria-hidden="true"></span>
-    <p>
-      <a href={`${SITE_URL}posts/${post.id}`} title={post.datetime}>
-        <time datetime={post.datetime} title={timeago}>{timeago}</time>
-      </a>
-    </p>
-  </div>
   {
     post.titleSplit && (
       <h2 class="post-title">
-        <a href={`${SITE_URL}posts/${post.id}`} title={post.title}>
+        <a href={detailHref} title={post.title}>
           {post.title}
         </a>
       </h2>
@@ -70,18 +62,20 @@ const hasTags = post.tags.length > 0
       </div>
     )
   }
-  {
-    hasTags && (
-      <p class="tags post-tags">
-        <span class="tag-icon" aria-hidden="true" />
-        {post.tags.map((tag: string) => (
-          <a href={getTagHref(tag)} title={tag}>
-            {tag}
-          </a>
-        ))}
-      </p>
-    )
-  }
+
+  <!-- Card footer: time (left) + read-original (right) -->
+  <footer class="post-footer">
+    <a href={detailHref} title={post.datetime} class="post-time">
+      <time datetime={post.datetime} title={timeago}>{timeago}</time>
+    </a>
+    {
+      !isDetail && (
+        <a href={detailHref} class="post-read-more" title="阅读原文">
+          阅读原文 →
+        </a>
+      )
+    }
+  </footer>
 
   {
     commentsEnabled && isDetail && (
