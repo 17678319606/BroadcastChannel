@@ -113,6 +113,22 @@
     color: var(--link-color);
     text-decoration: underline;
     text-underline-offset: 2px;
+    text-decoration-thickness: 1px;
+    border-radius: 2px;
+    transition:
+      background 0.15s ease,
+      color 0.15s ease;
+  }
+
+  .post-content a:hover {
+    color: var(--heading-color);
+    background: color-mix(in srgb, var(--link-color) 10%, transparent);
+    text-decoration-thickness: 2px;
+  }
+
+  .post-content a:focus-visible {
+    outline: 2px solid var(--link-color);
+    outline-offset: 2px;
   }
 
   .post-content img,
@@ -355,5 +371,14 @@
     padding: 3rem 1rem;
     text-align: center;
     opacity: 0.7;
+  }
+
+  /* Friendly end-of-feed indicator */
+  .end-of-feed {
+    text-align: center;
+    padding: 2rem 1rem;
+    opacity: 0.6;
+    font-size: 0.9em;
+    color: var(--muted-color);
   }
 }

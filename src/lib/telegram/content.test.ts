@@ -49,6 +49,24 @@ describe('cleanBodyContent', () => {
     expect($('div').text()).toContain('click here')
   })
 
+  it('recovers unwrapped links using fallbackPreviewUrl', () => {
+    const $ = load('<div><a href="tg://resolve?domain=test&amp;post=123">分享：123网盘</a></div>')
+    cleanBodyContent($, $('div'), 'https://123pan.com/s/abc')
+    const link = $('div').find('a')
+    expect(link.length).toBe(1)
+    expect(link.attr('href')).toBe('https://123pan.com/s/abc')
+    expect(link.attr('target')).toBe('_blank')
+    expect(link.text()).toContain('123网盘')
+  })
+
+  it('recovers failed rewrite links using fallbackPreviewUrl', () => {
+    const $ = load('<div><a href="https://t.me/url?url=not-a-valid-url">链接：123</a></div>')
+    cleanBodyContent($, $('div'), 'https://123pan.com/resource')
+    const link = $('div').find('a')
+    expect(link.length).toBe(1)
+    expect(link.attr('href')).toBe('https://123pan.com/resource')
+  })
+
   it('rewrites t.me proxy links to real destination', () => {
     const $ = load('<div><a href="https://t.me/url?url=https%3A%2F%2Fexample.com%2Fresource">分享：123网盘</a></div>')
     cleanBodyContent($, $('div'))
@@ -72,6 +90,14 @@ describe('cleanBodyContent', () => {
     cleanBodyContent($, $('div'))
     expect($('div').text()).toContain('secret message')
     expect($('div').find('tg-spoiler').length).toBe(0)
+  })
+
+  it('removes hashtag/tag search links from body content', () => {
+    const $ = load('<div><p>Some text <a href="?q=#东大高武学院">#东大高武学院</a> <a href="/search/result?q=#动画">#动画</a></p></div>')
+    cleanBodyContent($, $('div'))
+    expect($('div').find('a').length).toBe(0)
+    expect($('div').text()).toContain('#东大高武学院')
+    expect($('div').text()).toContain('#动画')
   })
 })
 

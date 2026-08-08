@@ -1,4 +1,15 @@
 @layer components {
+  /* Tablet breakpoint — tighten up spacing between phone and desktop. */
+  @media (max-width: 64rem) and (min-width: 37.51rem) {
+    .post-entry {
+      padding: 1.4rem 1.5rem 1.3rem;
+    }
+
+    .post-content {
+      font-size: 1.02rem;
+    }
+  }
+
   @media (max-width: 37.5rem) {
     .site-header {
       grid-template-columns: auto minmax(0, 1fr);
@@ -106,10 +117,33 @@
       margin-top: 0.85rem;
       padding-top: 0.65rem;
       font-size: 0.78em;
+      gap: 0.4rem;
+    }
+
+    .post-time {
+      font-size: 0.95em;
     }
 
     .post-read-more {
       font-size: 0.95em;
+      padding: 0.2rem 0.4rem;
+    }
+
+    /* Slightly more breathing room inside cards on mobile. */
+    .post-entry {
+      padding: 1.3rem 1.2rem 1.2rem;
+      margin-bottom: 1.2rem;
+    }
+
+    .post-content {
+      font-size: 1rem;
+      line-height: 1.8;
+    }
+
+    /* Larger tap targets for content links on mobile. */
+    .post-content a {
+      padding: 0.1em 0.15em;
+      margin: -0.1em -0.15em;
     }
   }
 }

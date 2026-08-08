@@ -107,13 +107,22 @@ export async function modifyHTMLContent($: CheerioAPI, content: MessageSelection
  *
  * - Removes images / video / audio / stickers / custom-emoji.
  * - Reveals spoilers as plain text.
+ * - Removes hashtag/tag search links from body text.
  * - For links that jump to Telegram (t.me / tg:// / telegram.org) or carry
  *   unsafe schemes (javascript:, data:, blob:): if the t.me URL contains a
  *   proxied `url=` parameter pointing to a real website, rewrite the href to
- *   that destination; otherwise unwrap the tag keeping only visible text.
+ *   that destination; otherwise try to recover using fallbackPreviewUrl; if
+ *   that also fails, unwrap keeping only visible text.
  * - Leaves ordinary http(s) website links and internal site links intact.
+ *
+ * @param $ - Cheerio API instance.
+ * @param content - The body content selection to clean.
+ * @param fallbackPreviewUrl - Optional real URL extracted from the Telegram
+ *   link preview element (.tgme_widget_message_link_preview). Used as a
+ *   last-resort fallback when a link would otherwise be unwrapped as plain
+ *   text, so "分享：123" / "链接：网盘" style text stays clickable.
  */
-export function cleanBodyContent($: CheerioAPI, content: MessageSelection): MessageSelection {
+export function cleanBodyContent($: CheerioAPI, content: MessageSelection, fallbackPreviewUrl?: string): MessageSelection {
   content
     .find('img, video, audio, source, tg-emoji, .tgme_widget_message_sticker, .tgme_widget_message_tgsticker_wrap, .js-videosticker_video, .tgme_widget_message_roundvideo_wrap')
     .remove()
@@ -129,12 +138,29 @@ export function cleanBodyContent($: CheerioAPI, content: MessageSelection): Mess
     $(spoiler).replaceWith($(spoiler).text())
   }
 
+  // Remove hashtag / tag search links from body text (e.g. #东大高武学院 →
+  // /search/result?q=#东大高武学院).  Collect them for RSS/tags page but
+  // don't render as clickable clutter in the reading flow.
+  content.find('a[href^="?q="], a[href^="/search/result?q="]').each((_, el) => {
+    $(el).replaceWith($(el).text())
+  })
+
   for (const linkNode of content.find('a').toArray()) {
     const link = $(linkNode)
     const href = (link.attr('href') ?? '').trim()
     const action = classifyLink(href)
     if (action === 'unwrap') {
-      link.replaceWith(link.text())
+      // Last-resort recovery: if we have a real preview URL from the
+      // Telegram link-preview card, rewrite the unwrapped link to point at
+      // that destination instead of discarding it entirely.  This fixes the
+      // common "分享：123" / "链接：网盘" plain-text issue.
+      if (fallbackPreviewUrl && /^https?:\/\//i.test(fallbackPreviewUrl)) {
+        link.attr('href', fallbackPreviewUrl)
+        link.attr('target', '_blank').attr('rel', 'noopener')
+      }
+      else {
+        link.replaceWith(link.text())
+      }
     }
     else if (action === 'rewrite') {
       // t.me proxy URL that embeds a real destination — rewrite href.
@@ -144,12 +170,22 @@ export function cleanBodyContent($: CheerioAPI, content: MessageSelection): Mess
         if (realUrl) {
           link.attr('href', realUrl)
         }
+        else if (fallbackPreviewUrl && /^https?:\/\//i.test(fallbackPreviewUrl)) {
+          link.attr('href', fallbackPreviewUrl)
+          link.attr('target', '_blank').attr('rel', 'noopener')
+        }
         else {
           link.replaceWith(link.text())
         }
       }
       catch {
-        link.replaceWith(link.text())
+        if (fallbackPreviewUrl && /^https?:\/\//i.test(fallbackPreviewUrl)) {
+          link.attr('href', fallbackPreviewUrl)
+          link.attr('target', '_blank').attr('rel', 'noopener')
+        }
+        else {
+          link.replaceWith(link.text())
+        }
       }
     }
   }

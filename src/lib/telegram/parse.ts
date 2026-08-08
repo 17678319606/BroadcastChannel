@@ -116,8 +116,15 @@ export async function extractPost($: CheerioAPI, item: AnyNode | null, options: 
   const id = message.attr('data-post')?.replace(new RegExp(`${channel}/`, 'i'), '') ?? ''
   const tags = rewriteTagLinksAndCollectTags($, content)
 
+  // Extract the real external URL from Telegram's link-preview card
+  // (.tgme_widget_message_link_preview).  This is often the actual destination
+  // when the body text contains a t.me/tg:// internal link that would
+  // otherwise be unwrapped into plain "分享：123" style text.
+  const previewLink = message.find('.tgme_widget_message_link_preview')
+  const fallbackPreviewUrl = previewLink.attr('href') ?? undefined
+
   // Strip media + Telegram jump-links so readers see only clean body text.
-  cleanBodyContent($, content)
+  cleanBodyContent($, content, fallbackPreviewUrl)
 
   // If the very first paragraph is an exact standalone title (a heading-style
   // first line), lift it out of the body so the UI can render it as a clickable

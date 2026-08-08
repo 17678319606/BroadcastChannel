@@ -4,15 +4,20 @@ import { decodeCursorMap, getChannelInfoCached } from '../../lib/telegram'
 import { getKVBinding } from '../../lib/cloudflare'
 import type { SeoMeta } from '../../types'
 
-const channel = await getChannelInfoCached(
-  {
-    before: decodeCursorMap(Astro.params.cursor),
-  },
-  getKVBinding(),
-)
+// Decode the cursor safely — malformed cursors fall back to {} (latest page).
+const decodedCursor = decodeCursorMap(Astro.params.cursor)
+const channel = await getChannelInfoCached({ before: decodedCursor }, getKVBinding())
 const pageParam = Math.max(1, Number(Astro.url.searchParams.get('p')) || 1)
 const pageSeo: SeoMeta = {
   noindex: true,
+}
+
+// If the cursor resolved to empty (user typed URL manually, or a stale
+// pagination link pointed past the end of the feed), redirect to home
+// rather than showing a confusing blank page or 404.
+const hasPosts = (channel.posts?.length ?? 0) > 0
+if (!hasPosts) {
+  return Astro.redirect('/')
 }
 ---
 
