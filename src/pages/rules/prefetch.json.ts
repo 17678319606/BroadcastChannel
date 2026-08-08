@@ -17,6 +17,7 @@ export const GET: APIRoute = () => {
   }, {
     headers: {
       'Content-Type': 'application/speculationrules+json',
+      'Cache-Control': 'public, max-age=86400, s-maxage=86400, stale-while-revalidate=3600',
     },
   })
 }

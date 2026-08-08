@@ -20,7 +20,8 @@ Sitemap: ${sitemapUrl}
   return new Response(body, {
     headers: {
       'Content-Type': 'text/plain; charset=utf-8',
-      'Cache-Control': 'public, max-age=86400',
+      // Edge cache 1 day; stale served up to 1h while revalidating.
+      'Cache-Control': 'public, max-age=86400, s-maxage=86400, stale-while-revalidate=3600',
     },
   })
 }

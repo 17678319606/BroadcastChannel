@@ -37,7 +37,7 @@ export const GET: APIRoute = async (Astro) => {
   ${entries.join('')}
 </sitemapindex>`, {
     headers: {
-      'Cache-Control': 'public, max-age=3600',
+      'Cache-Control': 'public, max-age=300, s-maxage=300, stale-while-revalidate=3600',
       'Content-Type': 'application/xml',
     },
   })

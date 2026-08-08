@@ -75,6 +75,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
       // background so users never wait on an upstream Telegram fetch.
       response.headers.set('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=3600')
     }
+
+    // 4xx/5xx: keep a tiny edge TTL so transient errors don't hammer origin,
+    // but never cache a 404 as a "page exists" response for long.
+    if (response.status >= 400 && !response.headers.has('Cache-Control')) {
+      response.headers.set('Cache-Control', 'public, max-age=10, s-maxage=10')
+    }
   }
   return response
 })

@@ -54,7 +54,7 @@ export const GET: APIRoute = async (context) => {
   return new Response(JSON.stringify(manifest, null, 2), {
     headers: {
       'Content-Type': 'application/manifest+json; charset=utf-8',
-      'Cache-Control': 'public, max-age=3600',
+      'Cache-Control': 'public, max-age=86400, s-maxage=86400, stale-while-revalidate=3600',
     },
   })
 }
