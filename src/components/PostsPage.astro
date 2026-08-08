@@ -118,6 +118,7 @@ const jsonLd =
           },
           image: articleImage,
           description: posts[0].description || posts[0].text?.slice(0, 160),
+          keywords: posts[0].tags.length ? posts[0].tags.join(', ') : undefined,
         },
         {
           '@context': 'https://schema.org',

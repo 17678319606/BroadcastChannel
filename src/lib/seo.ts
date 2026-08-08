@@ -70,7 +70,7 @@ export function getPageSeo(options: {
   const currentPathname = normalizePathname(pathname)
   const pageTitle = seo?.title?.trim()
   const siteTitle = channel?.title ?? ''
-  const seoDescription = seo?.text ?? channel?.description
+  const seoDescription = (seo?.text ?? channel?.description)?.trim()
   const fallbackShareImage = channel?.avatar
     ? `https://wsrv.nl/?w=1200&h=630&fit=cover&url=ssl:${channel.avatar.replace(URL_PROTOCOL_REGEX, '')}`
     : new URL('favicon.ico', absoluteSiteUrl).toString()

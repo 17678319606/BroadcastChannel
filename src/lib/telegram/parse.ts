@@ -128,6 +128,14 @@ export async function extractPost($: CheerioAPI, item: AnyNode | null, options: 
   const contentText = content.text()
   const title = contentText.trim().match(TITLE_PREVIEW_REGEX)?.[0] ?? contentText.trim()
   const id = message.attr('data-post')?.replace(new RegExp(`${channel}/`, 'i'), '') ?? ''
+  // A short, whitespace-collapsed excerpt for meta/OG descriptions and JSON-LD.
+  // Strips a leading title occurrence so the description doesn't duplicate the
+  // <title>, then truncates to a search-engine-friendly length.
+  let descriptionSource = contentText
+  if (title && descriptionSource.startsWith(title)) {
+    descriptionSource = descriptionSource.slice(title.length)
+  }
+  const description = descriptionSource.replace(/\s+/g, ' ').trim().slice(0, 160)
   const tags = rewriteTagLinksAndCollectTags($, content)
 
   // Extract the real external URL from Telegram's link-preview card
@@ -169,6 +177,7 @@ export async function extractPost($: CheerioAPI, item: AnyNode | null, options: 
     datetime: message.find('.tgme_widget_message_date time').attr('datetime') ?? '',
     tags,
     text: contentText,
+    description,
     content: contentHtml,
     reactions: reactionsEnabled ? getReactions($, message, telegramHost, staticProxy) : [],
     titleSplit,

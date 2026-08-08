@@ -25,7 +25,7 @@ const { channel, pageClass, pageType, seo, structuredData, prevUrl, nextUrl } = 
   nextUrl?: string
 }
 
-const locale = getEnv(import.meta.env, 'LOCALE')
+const locale = getEnv(import.meta.env, 'LOCALE') || 'zh-CN'
 const twitter = getEnv(import.meta.env, 'TWITTER')
 const {
   absoluteSiteUrl,
