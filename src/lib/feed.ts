@@ -11,12 +11,67 @@ export interface FeedData {
   title: string
 }
 
+/**
+ * Pagination descriptor shared by the RSS 2.0 and JSON Feed outputs so both
+ * stay in lock-step (same `?page=` semantics, same self/prev/next URLs).
+ */
+export interface RssPagination {
+  /** 1-based current page number. */
+  page: number
+  /** Number of items per page. */
+  pageSize: number
+  /** Total number of pages for the whole dataset. */
+  totalPages: number
+  /** Absolute URL of *this* page — used for <atom:link rel="self"> / feed_url. */
+  selfUrl: string
+  /** Absolute URL of the previous page — omitted on the first page. */
+  prevUrl?: string
+  /** Absolute URL of the next page — omitted on the last page. */
+  nextUrl?: string
+}
+
+/**
+ * Resolve feed pagination from the incoming request URL.
+ *
+ * Mirrors the WordPress archive-feed behaviour: `?page=` is 1-based, a
+ * non-numeric / missing value falls back to page 1, and the self/prev/next
+ * URLs preserve any other query params (e.g. `?tag=`). The caller decides what
+ * to do with out-of-range pages (the RSS and JSON Feed routes both 404).
+ */
+export function resolvePagination(context: APIContext, total: number, pageSize: number): RssPagination {
+  const rawPage = context.url.searchParams.get('page')
+  const requested = rawPage ? Number.parseInt(rawPage, 10) : 1
+  const page = Number.isFinite(requested) && requested >= 1 ? Math.floor(requested) : 1
+  const totalPages = Math.max(1, Math.ceil(total / pageSize))
+
+  const buildPageUrl = (target: number | null): string => {
+    const url = new URL(context.url.toString())
+    if (target === null) {
+      url.searchParams.delete('page')
+    }
+    else {
+      url.searchParams.set('page', String(target))
+    }
+    return url.toString()
+  }
+
+  const selfUrl = page === 1 ? buildPageUrl(null) : buildPageUrl(page)
+  const prevUrl = page > 1 ? buildPageUrl(page === 2 ? null : page - 1) : undefined
+  const nextUrl = page < totalPages ? buildPageUrl(page + 1) : undefined
+
+  return { page, pageSize, totalPages, selfUrl, prevUrl, nextUrl }
+}
+
 export interface JsonFeedData {
   version: string
   title: string
   description: string
   home_page_url: string
   feed_url: string
+  /** JSON Feed 1.1 standard field: URL of the next page of the feed. */
+  next_url?: string
+  /** Extension mirror of RSS `rel="prev"` — omitted on the first page. */
+  prev_url?: string
   items: {
     id: string
     url: string
@@ -28,14 +83,20 @@ export interface JsonFeedData {
   }[]
 }
 
-export function buildJsonFeed({ channel, posts, siteUrl, title }: FeedData): JsonFeedData {
-  return {
+export function buildJsonFeed({ channel, posts, siteUrl, title }: FeedData, pagination?: RssPagination): JsonFeedData {
+  const allPosts = posts.filter(post => Boolean(post.id && post.datetime))
+  const start = pagination ? (pagination.page - 1) * pagination.pageSize : 0
+  const end = pagination ? start + pagination.pageSize : allPosts.length
+
+  const feedUrl = pagination?.selfUrl ?? new URL('rss.json', siteUrl).toString()
+
+  const feed: JsonFeedData = {
     version: 'https://jsonfeed.org/version/1.1',
     title,
     description: channel.description,
     home_page_url: siteUrl.toString(),
-    feed_url: new URL('rss.json', siteUrl).toString(),
-    items: posts.map((item) => {
+    feed_url: feedUrl,
+    items: allPosts.slice(start, end).map((item) => {
       const itemUrl = new URL(`posts/${item.id}`, siteUrl).toString()
 
       return {
@@ -49,6 +110,16 @@ export function buildJsonFeed({ channel, posts, siteUrl, title }: FeedData): Jso
       }
     }),
   }
+
+  // Mirror the RSS atom:link prev/next so consumers can walk the archive.
+  if (pagination?.nextUrl) {
+    feed.next_url = pagination.nextUrl
+  }
+  if (pagination?.prevUrl) {
+    feed.prev_url = pagination.prevUrl
+  }
+
+  return feed
 }
 
 export async function getFeedData(context: APIContext, kv?: KVNamespaceLike): Promise<FeedData> {

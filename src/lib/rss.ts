@@ -1,4 +1,4 @@
-import type { FeedData } from './feed'
+import type { FeedData, RssPagination } from './feed'
 import { getEnv } from './env'
 import { sanitizeFeedHtml } from './sanitize'
 
@@ -101,21 +101,6 @@ function extractFirstImage(html: string): string | null {
  *   - `<slash:comments>0`.
  * - Dates use the RFC-822 `+0000` form WordPress emits.
  */
-export interface RssPagination {
-  /** 1-based current page number. */
-  page: number
-  /** Number of items per page. */
-  pageSize: number
-  /** Total number of pages for the whole dataset. */
-  totalPages: number
-  /** Absolute URL of *this* page — used for <atom:link rel="self">. */
-  selfUrl: string
-  /** Absolute URL of the previous page — omitted on the first page. */
-  prevUrl?: string
-  /** Absolute URL of the next page — omitted on the last page. */
-  nextUrl?: string
-}
-
 /**
  * Build a WordPress-shaped RSS 2.0 document from feed data.
  *
