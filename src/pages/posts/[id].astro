@@ -1,30 +1,40 @@
 ---
 import PostsPage from '../../components/PostsPage.astro'
-import { getChannelInfoCached, getPostContext } from '../../lib/telegram'
+import { getChannelInfoCached, getChannelPost, getPostContext } from '../../lib/telegram'
 import { getKVBinding } from '../../lib/cloudflare'
 
 if (!Astro.params.id) {
   return Astro.redirect('/')
 }
 
+const kv = getKVBinding()
+const siteInfo = await getChannelInfoCached({}, kv)
+
 // Fresh, accurate post + navigation context (prev/next/related). Always fetched
-// so the latest parsing (link restoration, ad filtering) is applied and so older
-// posts outside the cached "latest" window still get correct neighbours.
-const context = await getPostContext(Astro.params.id)
-const post = context.post
+// so the latest parsing (link restoration, ad filtering) is applied.
+let context = await getPostContext(Astro.params.id)
+let post = context.post
+
+// Resilience: if the upstream Telegram fetch hiccups (rate-limited / slow),
+// fall back to the cached aggregate feed — then a single fresh fetch — so a
+// detail page never 404s just because Telegram blinked. Navigation may be
+// absent in that fallback, but the article still renders.
+if (!post) {
+  post = siteInfo.posts.find((item) => item.id === Astro.params.id) ?? (await getChannelPost(Astro.params.id))
+  if (post) {
+    context = { post, prev: null, next: null, related: [] }
+  }
+}
 
 if (!post) {
   return new Response('Not Found', {
     status: 404,
     headers: {
-      'Cache-Control': 'public, max-age=300, s-maxage=300',
+      'Cache-Control': 'public, max-age=60, s-maxage=60',
     },
   })
 }
 
-// Site-level metadata (title / avatar / description) comes from the cached
-// aggregate — cheap and stable across detail pages.
-const siteInfo = await getChannelInfoCached({}, getKVBinding())
 const channel = {
   ...(siteInfo || {}),
   posts: [post],
