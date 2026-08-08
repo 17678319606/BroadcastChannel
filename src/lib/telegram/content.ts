@@ -107,7 +107,8 @@ export async function modifyHTMLContent($: CheerioAPI, content: MessageSelection
  *
  * - Removes images / video / audio / stickers / custom-emoji.
  * - Reveals spoilers as plain text.
- * - Removes hashtag/tag search links from body text.
+ * - Keeps internal site hashtag links (/search/result?q=…) for SEO; strips
+ *   external-only tag links (?q= without leading /).
  * - For links that jump to Telegram (t.me / tg:// / telegram.org) or carry
  *   unsafe schemes (javascript:, data:, blob:): if the t.me URL contains a
  *   proxied `url=` parameter pointing to a real website, rewrite the href to
@@ -138,10 +139,11 @@ export function cleanBodyContent($: CheerioAPI, content: MessageSelection, fallb
     $(spoiler).replaceWith($(spoiler).text())
   }
 
-  // Remove hashtag / tag search links from body text (e.g. #东大高武学院 →
-  // /search/result?q=#东大高武学院).  Collect them for RSS/tags page but
-  // don't render as clickable clutter in the reading flow.
-  content.find('a[href^="?q="], a[href^="/search/result?q="]').each((_, el) => {
+  // Remove hashtag / tag links that point outside the site (e.g. Telegram's
+  // original ?q= relative links).  Internal site links (/search/result?q=...) are
+  // kept for SEO value — they drive internal search traffic and help crawlers
+  // discover tagged content.
+  content.find('a[href^="?q="]').each((_, el) => {
     $(el).replaceWith($(el).text())
   })
 

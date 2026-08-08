@@ -30,10 +30,11 @@ describe('extractPost', () => {
     expect(post.datetime).toBe('2026-07-14T08:30:00+00:00')
     expect(post.tags).toEqual(['release', 'astro'])
     expect(post.text).toBe('Release notes。Details for #release and #astro')
-    // Hashtag links are collected into post.tags (for RSS / tags page) but
-    // removed from the body so they don't clutter the reading view.
-    expect(post.content).toBe('Release notes。Details for #release and #astro')
-    expect(post.content).not.toContain('<a ')
+    // Hashtag links are collected into post.tags (for RSS / tags page) AND
+    // preserved as internal /search/result links for SEO value.
+    expect(post.content).toContain('/search/result?q=')
+    expect(post.content).toContain('#release')
+    expect(post.content).toContain('#astro')
     expect(post.reactions).toEqual([])
   })
 

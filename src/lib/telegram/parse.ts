@@ -41,18 +41,32 @@ function renderPostContent(
     id: string
     title: string
   },
+  fallbackPreviewUrl?: string,
 ): string {
   const { staticProxy } = options
 
   // Note: media + Telegram jump-link stripping and the optional title/body split
   // are performed in extractPost() before this function is called, so the body
   // passed here is already the clean reading text.
-  return [
+  const parts = [
     content.html(),
     ...renderRawContent($, message, { staticProxy }),
-  ]
-    .filter(isNonEmptyString)
-    .join('')
+  ].filter(isNonEmptyString)
+
+  // If Telegram attached a link-preview card with a real destination URL but
+  // the cleaned body text contains no clickable external link (common when the
+  // sender wrote plain text like "分享：123" / "链接：网盘"), inject a subtle
+  // "阅读原文" link so visitors can still reach the target.
+  if (fallbackPreviewUrl && /^https?:\/\//i.test(fallbackPreviewUrl)) {
+    const bodyHtml = parts.join('')
+    const hasExternalLink = /<a\s[^>]*href=["']?https?:\/\/[^"'>\s]+['"]?/.test(bodyHtml)
+    if (!hasExternalLink) {
+      const safeUrl = fallbackPreviewUrl.replace(/"/g, '&quot;')
+      parts.push(`<p class="post-source-link"><a href="${safeUrl}" target="_blank" rel="noopener">阅读原文 →</a></p>`)
+    }
+  }
+
+  return parts.join('')
 }
 
 function getReactions($: CheerioAPI, message: MessageSelection, telegramHost: string, staticProxy: string): Reaction[] {
@@ -142,7 +156,7 @@ export async function extractPost($: CheerioAPI, item: AnyNode | null, options: 
     }
   }
 
-  const contentHtml = renderPostContent($, message, content, { channel, staticProxy, index, id, title })
+  const contentHtml = renderPostContent($, message, content, { channel, staticProxy, index, id, title }, fallbackPreviewUrl)
 
   // Composite id keeps posts unique across aggregated channels: `${channel}.${id}`.
   const compositeId = id ? `${channel}.${id}` : ''

@@ -87,4 +87,15 @@ describe('content safety filter', () => {
     expect(isBlockedContent('S01 1080p WEB-DL AVC DDP5.1 Atmos [HiveWeb] 完结')).toBe(false)
     expect(isBlockedContent('沦元界妖邪作乱，人族饱受摧残，主角孟川自小立下为母复仇的誓言')).toBe(false)
   })
+
+  it('blocks VIP / paid-upgrade / mall ads from latest screenshot', () => {
+    // Screenshot: "想要购买进阶资源？即刻加入VIP解锁无限资源"
+    expect(isBlockedContent('💎 想要购买进阶资源？即刻加入VIP解锁无限资源')).toBe(true)
+    // "点我进入官方购买商城👉"
+    expect(isBlockedContent('👉 点我进入官方购买商城 👈')).toBe(true)
+    // Variations
+    expect(isBlockedContent('VIP解锁全部资源 立即开通会员')).toBe(true)
+    expect(isBlockedContent('限时优惠 加入VIP 解锁无限内容')).toBe(true)
+    expect(isBlockedContent('官方正版商城 购买进阶教程')).toBe(true)
+  })
 })

@@ -92,12 +92,16 @@ describe('cleanBodyContent', () => {
     expect($('div').find('tg-spoiler').length).toBe(0)
   })
 
-  it('removes hashtag/tag search links from body content', () => {
-    const $ = load('<div><p>Some text <a href="?q=#东大高武学院">#东大高武学院</a> <a href="/search/result?q=#动画">#动画</a></p></div>')
+  it('removes external-only tag links but keeps internal /search/result links', () => {
+    const $ = load('<div><p>Some text <a href="?q=#东大高武学院">#东大高武学院</a> and <a href="/search/result?q=#动画">#动画</a></p></div>')
     cleanBodyContent($, $('div'))
-    expect($('div').find('a').length).toBe(0)
+    // External-relative ?q= tag link (no leading /) is stripped — no plain <a href="?q=">
+    expect($('div').find('a[href^="?q="]').length).toBe(0)
+    // Internal /search/result?q= tag link is KEPT for SEO
+    const internalLink = $('div').find('a[href^="/search/result"]')
+    expect(internalLink.length).toBe(1)
+    expect(internalLink.text()).toContain('#动画')
     expect($('div').text()).toContain('#东大高武学院')
-    expect($('div').text()).toContain('#动画')
   })
 })
 

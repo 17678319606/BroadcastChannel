@@ -131,6 +131,29 @@
     outline-offset: 2px;
   }
 
+  /* Injected source link when body text has no clickable external link
+     (e.g. "分享：123" / "链接：网盘" plain-text messages). */
+  .post-source-link {
+    margin-top: 0.7rem;
+    padding-top: 0.6rem;
+    border-top: 1px dashed color-mix(in srgb, var(--border-color) 60%, transparent);
+    font-size: 0.88em;
+    text-align: right;
+  }
+
+  .post-source-link a {
+    color: var(--link-color);
+    text-decoration: none;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    transition: color 0.15s ease;
+  }
+
+  .post-source-link a:hover {
+    color: var(--heading-color);
+    text-decoration: underline;
+  }
+
   .post-content img,
   .post-content video {
     max-width: 100%;
