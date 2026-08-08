@@ -193,6 +193,14 @@ const BUILTIN_PATTERNS: RegExp[] = [
   /宝妈.*?兼职/,
   /打字.*?兼职/,
   /高佣.*?推广/,
+
+  // Telegram bot / tool promotion spam (external service ads injected into channels)
+  /机器人：@/, // "机器人：@kuai @kuaia" — classic TG bot ad format
+  /(?:TG|telegram).{0,4}必备.{0,10}(?:搜索|工具|机器人|bot)/i,
+  /all in one bot/i, // English bot-promo catchphrase
+  /发现有趣.{0,6}(?:群组|频道)/, // Bot discovery language ("发现有趣群组、频道")
+  /(?:搜|找).{0,4}(?:群|频道|组).{0,4}(?:神器|助手|引擎|工具|bot)/i,
+  /@\w+\s+@\w+\s+@\w+/, // Triple @handle dump (bot ad signature)
 ]
 
 /** Escape a literal string for safe use inside a RegExp. */

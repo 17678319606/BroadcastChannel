@@ -98,4 +98,24 @@ describe('content safety filter', () => {
     expect(isBlockedContent('限时优惠 加入VIP 解锁无限内容')).toBe(true)
     expect(isBlockedContent('官方正版商城 购买进阶教程')).toBe(true)
   })
+
+  it('blocks Telegram bot / tool promotion spam (kuai bot etc.)', () => {
+    // Screenshot: 快搜kuai bot ad — the exact text from the live page
+    expect(isBlockedContent('TG必备的搜索引擎，快搜kuai帮你发现有趣群组、频道、视频、音乐、电影、新闻 | Find cool stuff all in one bot!\n机器人：@kuai @kuaia @kuaiaa\nhttps://t.me/kuai?start=a_3UOR1IE')).toBe(true)
+    // Individual patterns
+    expect(isBlockedContent('机器人：@kuai @kuaia @kuaiaa')).toBe(true)
+    expect(isBlockedContent('Find cool stuff all in one bot!')).toBe(true)
+    expect(isBlockedContent('TG必备的搜索神器，帮你发现有趣群组和频道')).toBe(true)
+    expect(isBlockedContent('搜群神器，一键发现所有相关频道')).toBe(true)
+    // Triple @handle dump
+    expect(isBlockedContent('机器人：@bot1 @bot2 @bot3')).toBe(true)
+  })
+
+  it('allows normal content that mentions bots or channels without promotional intent', () => {
+    // Normal post mentioning a channel/bot name in context
+    expect(isBlockedContent('本资源来自 @xx123pan6025 频道分享')).toBe(false)
+    expect(isBlockedContent('关注频道获取最新更新通知')).toBe(false)
+    // Single @handle reference (not a triple dump)
+    expect(isBlockedContent('联系管理员 @admin 处理问题')).toBe(false)
+  })
 })

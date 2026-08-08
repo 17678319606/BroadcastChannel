@@ -36,32 +36,41 @@ function makeFeed(posts: Post[]): FeedData {
 describe('buildWordPressRss', () => {
   const xml = buildWordPressRss(makeFeed([makePost()]))
 
-  it('declares the full WordPress namespace set', () => {
+  it('declares the full WordPress namespace set (including media)', () => {
     expect(xml).toContain('xmlns:content="http://purl.org/rss/1.0/modules/content/"')
     expect(xml).toContain('xmlns:wfw="http://wellformedweb.org/CommentAPI/"')
     expect(xml).toContain('xmlns:dc="http://purl.org/dc/elements/1.1/"')
     expect(xml).toContain('xmlns:atom="http://www.w3.org/2005/Atom"')
     expect(xml).toContain('xmlns:sy="http://purl.org/rss/1.0/modules/syndication/"')
     expect(xml).toContain('xmlns:slash="http://purl.org/rss/1.0/modules/slash/"')
+    expect(xml).toContain('xmlns:media="http://search.yahoo.com/mrss/"')
   })
 
-  it('emits WordPress-style channel metadata', () => {
+  it('emits WordPress-style channel metadata with ttl', () => {
     expect(xml).toContain('<atom:link href="https://123yunpan.lixuehanwork.workers.dev/rss.xml" rel="self" type="application/rss+xml" />')
     expect(xml).toContain('<language>zh-CN</language>')
     expect(xml).toContain('<sy:updatePeriod>hourly</sy:updatePeriod>')
     expect(xml).toContain('<sy:updateFrequency>1</sy:updateFrequency>')
+    expect(xml).toContain('<ttl>60</ttl>')
     expect(xml).toContain('<generator>BroadcastChannel (Astro)</generator>')
     expect(xml).toContain('<image>')
     expect(xml).toContain('<lastBuildDate>')
   })
 
-  it('per-item carries dc:creator, category, guid, description and content:encoded', () => {
-    expect(xml).toContain('<dc:creator>xx123pan6025</dc:creator>')
+  it('uses site brand name as dc:creator (not per-post channel username)', () => {
+    // Brand name is "123云盘资源分享", NOT "xx123pan6025"
+    expect(xml).toContain('<dc:creator>123云盘资源分享</dc:creator>')
+    expect(xml).not.toContain('<dc:creator>xx123pan6025</dc:creator>')
+  })
+
+  it('per-item carries category, guid, description, content:encoded, comments', () => {
     expect(xml).toContain('<category><![CDATA[动画]]></category>')
     expect(xml).toContain('<category><![CDATA[动作冒险]]></category>')
     expect(xml).toContain('<guid isPermaLink="true">https://123yunpan.lixuehanwork.workers.dev/posts/xx123pan6025.12518</guid>')
     expect(xml).toContain('<description>')
     expect(xml).toContain('<content:encoded>')
+    // <comments> points to the post URL
+    expect(xml).toContain('<comments>https://123yunpan.lixuehanwork.workers.dev/posts/xx123pan6025.12518</comments>')
   })
 
   it('outputs full-text content (not truncated) inside CDATA', () => {
@@ -99,5 +108,31 @@ describe('buildWordPressRss', () => {
     const channelNoAvatar: ChannelInfo = { ...makeFeed([]).channel, avatar: undefined }
     const feed: FeedData = { ...makeFeed([]), channel: channelNoAvatar }
     expect(buildWordPressRss(feed)).not.toContain('<image>')
+  })
+
+  it('emits <source> pointing to original Telegram channel', () => {
+    // Post from xx123pan6025 → source url should be t.me/xx123pan6025
+    expect(xml).toContain('<source url="https://t.me/xx123pan6025">123云盘资源分享</source>')
+  })
+
+  it('emits <media:thumbnail> and <enclosure> for posts with images', () => {
+    const postWithImage = makePost({
+      content: '<p><img src="https://cdn.example.com/poster.jpg" alt="封面"></p><p>正文</p>',
+    })
+    const xmlImg = buildWordPressRss(makeFeed([postWithImage]))
+    expect(xmlImg).toContain('<media:thumbnail url="https://cdn.example.com/poster.jpg" />')
+    expect(xmlImg).toContain('<enclosure url="https://cdn.example.com/poster.jpg" type="image/jpeg" length="0" />')
+  })
+
+  it('omits media:thumbnail and enclosure when post has no image', () => {
+    // Default makePost has no <img>
+    expect(xml).not.toContain('<media:thumbnail')
+    expect(xml).not.toContain('<enclosure')
+  })
+
+  it('skips <source> when post.channel is empty', () => {
+    const orphanPost = makePost({ channel: '' })
+    const xmlOrphan = buildWordPressRss(makeFeed([orphanPost]))
+    expect(xmlOrphan).not.toContain('<source')
   })
 })

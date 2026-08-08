@@ -6,6 +6,9 @@ import { sanitizeFeedHtml } from './sanitize'
  * Namespaces declared by a typical self-hosted WordPress RSS 2.0 feed.
  * Emitting them makes the feed consumable by the widest range of readers,
  * aggregators and "import from RSS" tools that expect the WordPress shape.
+ *
+ * Includes the Yahoo Media namespace so we can emit <media:thumbnail> for
+ * posts that carry a lead image.
  */
 const RSS_NAMESPACES = [
   'xmlns:content="http://purl.org/rss/1.0/modules/content/"',
@@ -14,6 +17,7 @@ const RSS_NAMESPACES = [
   'xmlns:atom="http://www.w3.org/2005/Atom"',
   'xmlns:sy="http://purl.org/rss/1.0/modules/syndication/"',
   'xmlns:slash="http://purl.org/rss/1.0/modules/slash/"',
+  'xmlns:media="http://search.yahoo.com/mrss/"',
 ].join(' ')
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -71,13 +75,30 @@ function plaintextExcerpt(text: string, maxLen = 200): string {
 }
 
 /**
+ * Extract the first image URL from an HTML string, or null if none exists.
+ * Used to emit <media:thumbnail> and <enclosure> elements.
+ */
+function extractFirstImage(html: string): string | null {
+  // Match <img src="..."> — prefer src over srcset for simplicity
+  const match = html.match(/<img[^>]+src=["']([^"']+)["']/i)
+  return match?.[1]?.startsWith('http') ? match[1] : null
+}
+
+/**
  * Build a WordPress-shaped RSS 2.0 document from feed data.
  *
  * Differences from the previous `@astrojs/rss` output:
- * - Declares the full WordPress namespace set (content, wfw, dc, atom, sy, slash).
- * - Adds `<atom:link rel="self">`, `<sy:updatePeriod/Frequency>` and a `<image>`.
- * - Each `<item>` carries `<dc:creator>`, one `<category>` per tag, and a
- *   plaintext `<description>` excerpt plus a full-text `<content:encoded>`.
+ * - Declares the full WordPress namespace set (content, wfw, dc, atom, sy, slash) plus media.
+ * - Adds `<atom:link rel="self">`, `<sy:updatePeriod/Frequency>`, `<ttl>`, `<image>`.
+ * - Each `<item>` carries:
+ *   - `<dc:creator>` set to the **site brand name** (not per-post channel username).
+ *   - One `<category>` per tag, `<guid isPermaLink="true">`.
+ *   - Plaintext `<description>` excerpt + full-text `<content:encoded>`.
+ *   - `<comments>` link (post URL — no native comment system but readers expect this).
+ *   - `<source url="...">` pointing back to the original Telegram source channel.
+ *   - `<media:thumbnail>` when the post has a lead image.
+ *   - `<enclosure>` when the post has a downloadable media asset (image).
+ *   - `<slash:comments>0`.
  * - Dates use the RFC-822 `+0000` form WordPress emits.
  */
 export function buildWordPressRss({ channel, posts, siteUrl, title }: FeedData): string {
@@ -85,13 +106,15 @@ export function buildWordPressRss({ channel, posts, siteUrl, title }: FeedData):
   const locale = getEnv(import.meta.env, 'LOCALE') || 'zh-CN'
   const siteUrlString = siteUrl.toString()
   const now = new Date()
+  // Use the site brand title as dc:creator for every item (unified identity).
+  const brandName = title || channel.title
 
   const itemsXml = posts
     .filter(post => Boolean(post.id && post.datetime))
     .map((post) => {
       const itemUrl = new URL(`posts/${post.id}`, siteUrl).toString()
       const pubDate = formatRfc822(new Date(post.datetime))
-      const creator = escapeXml(post.channel || channel.title)
+      const creator = escapeXml(brandName)
       const excerpt = escapeXml(plaintextExcerpt(post.text || ''))
       const fullContent = cdata(sanitizeFeedHtml(post.content || ''))
       const categories = (post.tags ?? [])
@@ -99,16 +122,32 @@ export function buildWordPressRss({ channel, posts, siteUrl, title }: FeedData):
         .map(tag => `      <category>${cdata(tag)}</category>`)
         .join('\n')
 
+      // Source attribution: point back to the original Telegram channel page.
+      const tgChannel = post.channel || ''
+      const sourceUrl = tgChannel ? `https://t.me/${tgChannel}` : ''
+      const sourceXml = sourceUrl
+        ? `      <source url="${escapeXml(sourceUrl)}">${escapeXml(channel.title)}</source>\n`
+        : ''
+
+      // Media thumbnail / enclosure for posts with images.
+      const imageUrl = extractFirstImage(post.content || '')
+      let mediaXml = ''
+      if (imageUrl) {
+        mediaXml
+          = `      <media:thumbnail url="${escapeXml(imageUrl)}" />\n`
+            + `      <enclosure url="${escapeXml(imageUrl)}" type="image/jpeg" length="0" />\n`
+      }
+
       return `    <item>
       <title>${escapeXml(post.title || '无标题')}</title>
       <link>${escapeXml(itemUrl)}</link>
       <dc:creator>${creator}</dc:creator>
       <pubDate>${pubDate}</pubDate>
-${categories}
-      <guid isPermaLink="true">${escapeXml(itemUrl)}</guid>
+${categories}      <guid isPermaLink="true">${escapeXml(itemUrl)}</guid>
       <description>${excerpt}</description>
+      <comments>${escapeXml(itemUrl)}</comments>
       <content:encoded>${fullContent}</content:encoded>
-      <slash:comments>0</slash:comments>
+${sourceXml}${mediaXml}      <slash:comments>0</slash:comments>
     </item>`
     })
     .join('\n')
@@ -133,6 +172,7 @@ ${categories}
     <language>${escapeXml(locale)}</language>
     <sy:updatePeriod>hourly</sy:updatePeriod>
     <sy:updateFrequency>1</sy:updateFrequency>
+    <ttl>60</ttl>
     <generator>BroadcastChannel (Astro)</generator>
 ${imageXml}    ${itemsXml}
   </channel>
