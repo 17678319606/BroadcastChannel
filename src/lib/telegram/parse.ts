@@ -135,7 +135,7 @@ export async function extractPost($: CheerioAPI, item: AnyNode | null, options: 
   if (title && descriptionSource.startsWith(title)) {
     descriptionSource = descriptionSource.slice(title.length)
   }
-  const description = descriptionSource.replace(/\s+/g, ' ').trim().slice(0, 160)
+  const description = descriptionSource.replace(/\s+/g, ' ').replace(/^[，。、,.!?；;：:—\s]+/, '').trim().slice(0, 160)
   const tags = rewriteTagLinksAndCollectTags($, content)
 
   // Extract the real external URL from Telegram's link-preview card
