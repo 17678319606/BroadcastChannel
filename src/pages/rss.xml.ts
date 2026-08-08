@@ -1,30 +1,16 @@
 import type { APIRoute } from 'astro'
-import rss from '@astrojs/rss'
 import { getKVBinding } from '../lib/cloudflare'
-import { getBooleanEnv } from '../lib/env'
 import { getFeedData } from '../lib/feed'
-import { sanitizeFeedHtml } from '../lib/sanitize'
+import { buildWordPressRss } from '../lib/rss'
 
 export const GET: APIRoute = async (context) => {
-  const { channel, posts, siteUrl, title } = await getFeedData(context, getKVBinding())
+  const feedData = await getFeedData(context, getKVBinding())
+  const xml = buildWordPressRss(feedData)
 
-  const response = await rss({
-    title,
-    description: channel.description,
-    site: siteUrl.toString(),
-    trailingSlash: false,
-    stylesheet: getBooleanEnv(import.meta.env, 'RSS_BEAUTIFY') ? '/rss.xsl' : undefined,
-    items: posts.map(item => ({
-      link: new URL(`posts/${item.id}`, siteUrl).toString(),
-      title: item.title,
-      description: item.description,
-      pubDate: new Date(item.datetime),
-      content: sanitizeFeedHtml(item.content),
-    })),
+  return new Response(xml, {
+    headers: {
+      'Content-Type': 'application/rss+xml; charset=utf-8',
+      'Cache-Control': 'public, max-age=3600',
+    },
   })
-
-  response.headers.set('Content-Type', 'text/xml')
-  response.headers.set('Cache-Control', 'public, max-age=3600')
-
-  return response
 }
