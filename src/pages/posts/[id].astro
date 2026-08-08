@@ -1,5 +1,6 @@
 ---
 import PostsPage from '../../components/PostsPage.astro'
+import NotFound from '../../components/NotFound.astro'
 import { getChannelInfoCached, getChannelPost, getPostContext } from '../../lib/telegram'
 import { getKVBinding } from '../../lib/cloudflare'
 
@@ -26,30 +27,27 @@ if (!post) {
   }
 }
 
-if (!post) {
-  return new Response('Not Found', {
-    status: 404,
-    headers: {
-      'Cache-Control': 'public, max-age=60, s-maxage=60',
-    },
-  })
-}
-
-const channel = {
-  ...(siteInfo || {}),
-  posts: [post],
+const notFound = !post
+if (notFound) {
+  Astro.response.status = 404
 }
 ---
 
-<PostsPage
-  channel={channel}
-  before={false}
-  after={false}
-  isDetail={true}
-  pageHeading={post.title || channel.title}
-  pageSeo={{ title: post.title, text: post.description, publishedTime: post.datetime }}
-  pageType="post"
-  prevPost={context.prev}
-  nextPost={context.next}
-  relatedPosts={context.related}
-/>
+{
+  notFound ? (
+    <NotFound heading="文章不存在" description="您访问的文章不存在、已被移除，或链接已过期。" />
+  ) : (
+    <PostsPage
+      channel={{ ...(siteInfo || {}), posts: [post as NonNullable<typeof post>] }}
+      before={false}
+      after={false}
+      isDetail={true}
+      pageHeading={post!.title || (siteInfo as { title?: string }).title}
+      pageSeo={{ title: post!.title, text: post!.description, publishedTime: post!.datetime }}
+      pageType="post"
+      prevPost={context.prev}
+      nextPost={context.next}
+      relatedPosts={context.related}
+    />
+  )
+}
