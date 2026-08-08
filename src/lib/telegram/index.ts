@@ -65,8 +65,10 @@ export async function getChannelPost(id: string): Promise<Post | null> {
  * filtering, etc. — and so navigation works even for posts outside the cached
  * "latest" window.
  *
- * Neighbours are resolved by fetching one page of posts `before` and one page
- * `after` the target message id; the closest older / newer id wins.
+ * The target post is parsed from its own single-message document, while the
+ * `before` / `after` windows (strictly older / newer) supply neighbours. The
+ * target itself never appears in those windows, so it must be fetched on its
+ * own.
  */
 export async function getPostContext(id: string): Promise<{
   post: Post | null
@@ -80,19 +82,30 @@ export async function getPostContext(id: string): Promise<{
     return { post: null, prev: null, next: null, related: [] }
   }
 
-  const [beforeInfo, afterInfo] = await Promise.all([
+  // Parallel fetches: the target post's own document + the older/newer windows.
+  const [targetDoc, beforeInfo, afterInfo] = await Promise.all([
+    loadChannelDocument({ channel: resolvedChannel, id: messageId }).catch(() => null),
     loadSingleChannel({ channel: resolvedChannel, before: messageId }).catch(() => null),
     loadSingleChannel({ channel: resolvedChannel, after: messageId }).catch(() => null),
   ])
 
+  if (!targetDoc) {
+    return { post: null, prev: null, next: null, related: [] }
+  }
+
+  const post = await extractPost(targetDoc.$, null, {
+    channel: targetDoc.channel,
+    telegramHost: targetDoc.telegramHost,
+    staticProxy: targetDoc.staticProxy,
+    reactionsEnabled: targetDoc.reactionsEnabled,
+  })
+  if (!isRenderablePost(post)) {
+    return { post: null, prev: null, next: null, related: [] }
+  }
+
   const beforePosts = beforeInfo?.posts ?? []
   const afterPosts = afterInfo?.posts ?? []
   const all = [...beforePosts, ...afterPosts]
-
-  const post = all.find(item => item.id === id) ?? null
-  if (!post) {
-    return { post: null, prev: null, next: null, related: [] }
-  }
 
   const toNumeric = (candidate: Post): number => {
     const mid = splitCompositeId(candidate.id).messageId
