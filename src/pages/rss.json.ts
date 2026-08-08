@@ -24,7 +24,10 @@ export const GET: APIRoute = async (context) => {
 
   return new Response(JSON.stringify(feed), {
     headers: {
-      'Cache-Control': 'public, max-age=3600',
+      // Edge cache 5 min; serve stale up to 1h while revalidating so readers
+      // never block on an upstream Telegram fetch. Brotli (CF default) keeps
+      // the full-text payload small.
+      'Cache-Control': 'public, max-age=60, s-maxage=300, stale-while-revalidate=3600',
       'Content-Type': 'application/feed+json; charset=utf-8',
     },
   })

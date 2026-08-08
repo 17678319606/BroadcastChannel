@@ -71,7 +71,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
     }
 
     if (shouldApplyDefaultCache(response)) {
-      response.headers.set('Cache-Control', 'public, max-age=300, s-maxage=300')
+      // Edge cache 5 min; serve stale for up to 1h while revalidating in the
+      // background so users never wait on an upstream Telegram fetch.
+      response.headers.set('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=3600')
     }
   }
   return response
