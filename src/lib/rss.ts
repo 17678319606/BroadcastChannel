@@ -101,44 +101,74 @@ function extractFirstImage(html: string): string | null {
  *   - `<slash:comments>0`.
  * - Dates use the RFC-822 `+0000` form WordPress emits.
  */
-export function buildWordPressRss({ channel, posts, siteUrl, title }: FeedData): string {
-  const feedUrl = new URL('rss.xml', siteUrl).toString()
+export interface RssPagination {
+  /** 1-based current page number. */
+  page: number
+  /** Number of items per page. */
+  pageSize: number
+  /** Total number of pages for the whole dataset. */
+  totalPages: number
+  /** Absolute URL of *this* page — used for <atom:link rel="self">. */
+  selfUrl: string
+  /** Absolute URL of the previous page — omitted on the first page. */
+  prevUrl?: string
+  /** Absolute URL of the next page — omitted on the last page. */
+  nextUrl?: string
+}
+
+/**
+ * Build a WordPress-shaped RSS 2.0 document from feed data.
+ *
+ * ... (see file header for the full element list) ...
+ *
+ * When `pagination` is supplied the channel gains `<atom:link rel="self">`,
+ * `rel="prev"` (page > 1) and `rel="next"` (page < totalPages) so feed readers
+ * and aggregators can walk older content the same way WordPress archive feeds
+ * do. The item list is sliced to the current page. Omit `pagination` to emit
+ * the full (unpaginated) feed for backward compatibility.
+ */
+export function buildWordPressRss(
+  { channel, posts, siteUrl, title }: FeedData,
+  pagination?: RssPagination,
+): string {
+  const feedUrl = pagination?.selfUrl ?? new URL('rss.xml', siteUrl).toString()
   const locale = getEnv(import.meta.env, 'LOCALE') || 'zh-CN'
   const siteUrlString = siteUrl.toString()
   const now = new Date()
   // Use the site brand title as dc:creator for every item (unified identity).
   const brandName = title || channel.title
 
-  const itemsXml = posts
-    .filter(post => Boolean(post.id && post.datetime))
-    .map((post) => {
-      const itemUrl = new URL(`posts/${post.id}`, siteUrl).toString()
-      const pubDate = formatRfc822(new Date(post.datetime))
-      const creator = escapeXml(brandName)
-      const excerpt = escapeXml(plaintextExcerpt(post.text || ''))
-      const fullContent = cdata(sanitizeFeedHtml(post.content || ''))
-      const categories = (post.tags ?? [])
-        .filter(Boolean)
-        .map(tag => `      <category>${cdata(tag)}</category>`)
-        .join('\n')
+  const allPosts = posts.filter(post => Boolean(post.id && post.datetime))
+  const start = pagination ? (pagination.page - 1) * pagination.pageSize : 0
+  const end = pagination ? start + pagination.pageSize : allPosts.length
+  const itemsXml = allPosts.slice(start, end).map((post) => {
+    const itemUrl = new URL(`posts/${post.id}`, siteUrl).toString()
+    const pubDate = formatRfc822(new Date(post.datetime))
+    const creator = escapeXml(brandName)
+    const excerpt = escapeXml(plaintextExcerpt(post.text || ''))
+    const fullContent = cdata(sanitizeFeedHtml(post.content || ''))
+    const categories = (post.tags ?? [])
+      .filter(Boolean)
+      .map(tag => `      <category>${cdata(tag)}</category>`)
+      .join('\n')
 
-      // Source attribution: point back to the original Telegram channel page.
-      const tgChannel = post.channel || ''
-      const sourceUrl = tgChannel ? `https://t.me/${tgChannel}` : ''
-      const sourceXml = sourceUrl
-        ? `      <source url="${escapeXml(sourceUrl)}">${escapeXml(channel.title)}</source>\n`
-        : ''
+    // Source attribution: point back to the original Telegram channel page.
+    const tgChannel = post.channel || ''
+    const sourceUrl = tgChannel ? `https://t.me/${tgChannel}` : ''
+    const sourceXml = sourceUrl
+      ? `      <source url="${escapeXml(sourceUrl)}">${escapeXml(channel.title)}</source>\n`
+      : ''
 
-      // Media thumbnail / enclosure for posts with images.
-      const imageUrl = extractFirstImage(post.content || '')
-      let mediaXml = ''
-      if (imageUrl) {
-        mediaXml
-          = `      <media:thumbnail url="${escapeXml(imageUrl)}" />\n`
-            + `      <enclosure url="${escapeXml(imageUrl)}" type="image/jpeg" length="0" />\n`
-      }
+    // Media thumbnail / enclosure for posts with images.
+    const imageUrl = extractFirstImage(post.content || '')
+    let mediaXml = ''
+    if (imageUrl) {
+      mediaXml
+        = `      <media:thumbnail url="${escapeXml(imageUrl)}" />\n`
+          + `      <enclosure url="${escapeXml(imageUrl)}" type="image/jpeg" length="0" />\n`
+    }
 
-      return `    <item>
+    return `    <item>
       <title>${escapeXml(post.title || '无标题')}</title>
       <link>${escapeXml(itemUrl)}</link>
       <dc:creator>${creator}</dc:creator>
@@ -149,8 +179,7 @@ ${categories}      <guid isPermaLink="true">${escapeXml(itemUrl)}</guid>
       <content:encoded>${fullContent}</content:encoded>
 ${sourceXml}${mediaXml}      <slash:comments>0</slash:comments>
     </item>`
-    })
-    .join('\n')
+  }).join('\n')
 
   const imageXml = channel.avatar
     ? `    <image>
@@ -161,12 +190,26 @@ ${sourceXml}${mediaXml}      <slash:comments>0</slash:comments>
 `
     : ''
 
+  const pagingLinks = [
+    `    <atom:link href="${escapeXml(feedUrl)}" rel="self" type="application/rss+xml" />`,
+  ]
+  if (pagination?.prevUrl) {
+    pagingLinks.push(
+      `    <atom:link href="${escapeXml(pagination.prevUrl)}" rel="prev" type="application/rss+xml" />`,
+    )
+  }
+  if (pagination?.nextUrl) {
+    pagingLinks.push(
+      `    <atom:link href="${escapeXml(pagination.nextUrl)}" rel="next" type="application/rss+xml" />`,
+    )
+  }
+  const pagingXml = `${pagingLinks.join('\n')}\n`
+
   return `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" ${RSS_NAMESPACES}>
   <channel>
     <title>${escapeXml(title)}</title>
-    <atom:link href="${escapeXml(feedUrl)}" rel="self" type="application/rss+xml" />
-    <link>${escapeXml(siteUrlString)}</link>
+${pagingXml}    <link>${escapeXml(siteUrlString)}</link>
     <description>${escapeXml(channel.description || '')}</description>
     <lastBuildDate>${formatRfc822(now)}</lastBuildDate>
     <language>${escapeXml(locale)}</language>

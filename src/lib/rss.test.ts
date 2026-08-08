@@ -136,3 +136,80 @@ describe('buildWordPressRss', () => {
     expect(xmlOrphan).not.toContain('<source')
   })
 })
+
+describe('buildWordPressRss pagination', () => {
+  const manyPosts = Array.from({ length: 5 }, (_, i) =>
+    makePost({ id: `xx123pan6025.${1000 + i}`, title: `标题 ${i}` }))
+  const feed = makeFeed(manyPosts)
+
+  it('omits prev/next and emits all items when pagination is absent', () => {
+    const xml = buildWordPressRss(feed)
+    expect((xml.match(/<item>/g) ?? []).length).toBe(5)
+    expect(xml).not.toContain('rel="next"')
+    expect(xml).not.toContain('rel="prev"')
+    expect(xml).toContain(
+      '<atom:link href="https://123yunpan.lixuehanwork.workers.dev/rss.xml" rel="self"',
+    )
+  })
+
+  it('page 1: self has no page param, next points to page 2, no prev', () => {
+    const xml = buildWordPressRss(feed, {
+      page: 1,
+      pageSize: 2,
+      totalPages: 3,
+      selfUrl: 'https://123yunpan.lixuehanwork.workers.dev/rss.xml',
+      nextUrl: 'https://123yunpan.lixuehanwork.workers.dev/rss.xml?page=2',
+    })
+    expect(xml).toContain('rel="self"')
+    expect(xml).toContain('href="https://123yunpan.lixuehanwork.workers.dev/rss.xml"')
+    expect(xml).toContain('rel="next"')
+    expect(xml).toContain('href="https://123yunpan.lixuehanwork.workers.dev/rss.xml?page=2"')
+    expect(xml).not.toContain('rel="prev"')
+    expect((xml.match(/<item>/g) ?? []).length).toBe(2)
+  })
+
+  it('middle page: emits both prev and next', () => {
+    const xml = buildWordPressRss(feed, {
+      page: 2,
+      pageSize: 2,
+      totalPages: 3,
+      selfUrl: 'https://123yunpan.lixuehanwork.workers.dev/rss.xml?page=2',
+      prevUrl: 'https://123yunpan.lixuehanwork.workers.dev/rss.xml',
+      nextUrl: 'https://123yunpan.lixuehanwork.workers.dev/rss.xml?page=3',
+    })
+    expect(xml).toContain('rel="prev"')
+    expect(xml).toContain('href="https://123yunpan.lixuehanwork.workers.dev/rss.xml"')
+    expect(xml).toContain('rel="next"')
+    expect(xml).toContain('href="https://123yunpan.lixuehanwork.workers.dev/rss.xml?page=3"')
+    expect((xml.match(/<item>/g) ?? []).length).toBe(2)
+  })
+
+  it('last page: emits prev, omits next, and carries the remainder', () => {
+    const xml = buildWordPressRss(feed, {
+      page: 3,
+      pageSize: 2,
+      totalPages: 3,
+      selfUrl: 'https://123yunpan.lixuehanwork.workers.dev/rss.xml?page=3',
+      prevUrl: 'https://123yunpan.lixuehanwork.workers.dev/rss.xml?page=2',
+    })
+    expect(xml).toContain('rel="prev"')
+    expect(xml).not.toContain('rel="next"')
+    // 5 posts, page size 2 → last page has the leftover 1 item
+    expect((xml.match(/<item>/g) ?? []).length).toBe(1)
+  })
+
+  it('slices the correct window per page', () => {
+    const page2 = buildWordPressRss(feed, {
+      page: 2,
+      pageSize: 2,
+      totalPages: 3,
+      selfUrl: 'x',
+      nextUrl: 'y',
+    })
+    // page 2 → slice [2, 4) → titles 2 and 3
+    expect(page2).toContain('标题 2')
+    expect(page2).toContain('标题 3')
+    expect(page2).not.toContain('标题 0')
+    expect(page2).not.toContain('标题 4')
+  })
+})
