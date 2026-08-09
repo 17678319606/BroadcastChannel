@@ -1,0 +1,58 @@
+name: Deploy to Cloudflare Workers
+
+# Manual trigger only — run from the Actions tab after setting the two secrets
+# below (Settings → Secrets and variables → Actions). No auto-deploy on push,
+# to avoid surprising redeploys.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install pnpm
+        run: npm install -g pnpm@11.13.0
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build (Astro → Cloudflare Workers bundle)
+        run: pnpm build
+        env:
+          SERVER_ADAPTER: cloudflare_workers
+
+      - name: Push GH_DISPATCH_TOKEN to Cloudflare secret
+        # The active-push feature reads this at runtime. Stored encrypted in
+        # Cloudflare; never printed. Value comes from the GitHub repo secret
+        # GH_DISPATCH_TOKEN (set it to a GitHub PAT with repo + actions scope
+        # for the snapshot repo).
+        run: echo "${{ secrets.GH_DISPATCH_TOKEN }}" | npx wrangler secret put GH_DISPATCH_TOKEN
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Deploy worker (123yunpan)
+        # Deploys the worker defined in wrangler.jsonc. keep_vars:true preserves
+        # the dashboard-set CHANNELS var, so no config is lost.
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # --- To also enable active push for the 2nd worker (zhongnianren):
+      # 1. uncomment the step below and fill in its CHANNELS value
+      # 2. (its GH_DISPATCH_TOKEN secret is shared via the same Cloudflare account)
+      # - name: Deploy worker (zhongnianren)
+      #   run: npx wrangler deploy --name zhongnianren --var CHANNELS="<填写zhongnianren的频道列表>"
+      #   env:
+      #     CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      #     CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
