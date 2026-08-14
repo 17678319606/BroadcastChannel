@@ -6,6 +6,10 @@ on:
 permissions:
   contents: read
 
+env:
+  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+  CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -27,55 +31,50 @@ jobs:
         env:
           SERVER_ADAPTER: cloudflare_workers
 
-      - name: Ensure FEED_CACHE KV namespace exists
+      # Idempotently ensure one FEED_CACHE KV namespace PER worker so the two
+      # different channel sets never share/cross-contaminate a cache key.
+      - name: Ensure FEED_CACHE KV namespaces (one per worker)
         id: kv
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -e
-          list_json=$(pnpm exec wrangler kv namespace list --json)
-          id=$(echo "$list_json" | python3 -c "import sys,json; d=json.load(sys.stdin); print(next((x.get('id') for x in d if x.get('title')=='FEED_CACHE' or x.get('name')=='FEED_CACHE'), ''))")
-          if [ -z "$id" ]; then
-            out=$(pnpm exec wrangler kv namespace create FEED_CACHE 2>&1) || true
-            if ! echo "$out" | grep -q 'id = "'; then
-              list_json2=$(pnpm exec wrangler kv namespace list --json)
-              id=$(echo "$list_json2" | python3 -c "import sys,json; d=json.load(sys.stdin); print(next((x.get('id') for x in d if x.get('title')=='FEED_CACHE' or x.get('name')=='FEED_CACHE'), ''))")
-            else
-              id=$(echo "$out" | grep -oE 'id = "[a-f0-9]+"' | head -1 | sed 's/id = "//; s/"//')
+          ensure() {
+            local title="$1"
+            local id
+            id=$(pnpm exec wrangler kv namespace list --json \
+              | python3 -c "import sys,json; d=json.load(sys.stdin); print(next((x['id'] for x in d if x.get('title')=='$title'),''))")
+            if [ -z "$id" ]; then
+              id=$(pnpm exec wrangler kv namespace create "$title" \
+                | grep -oE 'id = "[a-f0-9]+"' | head -1 | sed 's/id = "//; s/"//')
             fi
-          fi
-          echo "FEED_CACHE_ID=$id" >> "$GITHUB_OUTPUT"
-          echo "Using FEED_CACHE id: $id"
+            echo "$id"
+          }
+          echo "FEED_123=$(ensure bc-feed-123yunpan)" >> "$GITHUB_OUTPUT"
+          echo "FEED_ZN=$(ensure bc-feed-zhongnianren)" >> "$GITHUB_OUTPUT"
+          echo "FEED_123=$(ensure bc-feed-123yunpan)"
+          echo "FEED_ZN=$(ensure bc-feed-zhongnianren)"
 
-      - name: Inject KV namespace id into wrangler.jsonc
-        env:
-          FEED_CACHE_ID: ${{ steps.kv.outputs.FEED_CACHE_ID }}
+      - name: Deploy worker (123yunpan)
         run: |
           python3 - <<'PY'
           import os, re
           p = 'wrangler.jsonc'
           s = open(p, encoding='utf-8').read()
-          s = s.replace('PASTE_FEED_CACHE_ID_HERE', os.environ['FEED_CACHE_ID'])
+          s = re.sub(r'("binding":\s*"FEED_CACHE",\s*"id":\s*")[^"]*(")',
+                     r'\g<1>' + os.environ['FEED_123'] + r'\g<2>', s)
           open(p, 'w', encoding='utf-8').write(s)
-          print('wrangler.jsonc patched with KV id')
+          print('wrangler.jsonc patched with 123yunpan FEED_CACHE id')
           PY
-
-      - name: Push GH_DISPATCH_TOKEN to Cloudflare secret
-        if: ${{ secrets.GH_DISPATCH_TOKEN != '' }}
-        run: echo "${{ secrets.GH_DISPATCH_TOKEN }}" | pnpm exec wrangler secret put GH_DISPATCH_TOKEN
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-
-      - name: Deploy worker (123yunpan)
-        run: pnpm exec wrangler deploy
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          pnpm exec wrangler deploy
 
       - name: Deploy worker (zhongnianren)
-        run: pnpm exec wrangler deploy --name zhongnianren
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          python3 - <<'PY'
+          import os, re
+          p = 'wrangler.jsonc'
+          s = open(p, encoding='utf-8').read()
+          s = re.sub(r'("binding":\s*"FEED_CACHE",\s*"id":\s*")[^"]*(")',
+                     r'\g<1>' + os.environ['FEED_ZN'] + r'\g<2>', s)
+          open(p, 'w', encoding='utf-8').write(s)
+          print('wrangler.jsonc patched with zhongnianren FEED_CACHE id')
+          PY
+          pnpm exec wrangler deploy --name zhongnianren
