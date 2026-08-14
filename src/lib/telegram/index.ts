@@ -34,7 +34,6 @@ async function loadSingleChannel(
   const posts = (await Promise.all(
     postNodes.map((item, index) => extractPost($, item, { channel, telegramHost, staticProxy, index, reactionsEnabled })),
   ))
-    .reverse()
     .filter(isRenderablePost)
 
   const channelInfo: ChannelInfo = {
@@ -179,7 +178,10 @@ export async function getChannelInfo(params: AggregatedChannelInfoParams = {}): 
   const loaded = results.filter((channel): channel is ChannelInfo => channel !== null)
   const aggregated = loaded
     .flatMap(channel => channel.posts)
-    .sort((a, b) => new Date(b.datetime).getTime() - new Date(a.datetime).getTime())
+    // Sort by publish time (newest first). `Date.parse` falls back to 0 for
+    // missing/empty datetimes so the comparator never produces NaN (which would
+    // make Array.sort's ordering undefined and could momentarily mis-order posts).
+    .sort((a, b) => (Date.parse(b.datetime) || 0) - (Date.parse(a.datetime) || 0))
 
   // Block adult / gambling / drug / gray-black financial content (net-disk sharing allowed).
   // Disabled by setting CONTENT_FILTER=false.
