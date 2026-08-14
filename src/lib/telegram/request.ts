@@ -18,7 +18,9 @@ interface TelegramHtmlParams {
 export function getTelegramRequestHeaders(): Record<string, string> {
   return {
     'accept': 'text/html,application/xhtml+xml',
-    'user-agent': 'BroadcastChannel/0.2.0',
+    // Use a realistic browser UA: Telegram's t.me/s/<channel> and message pages
+    // can return a degraded/empty payload (or rate-limit) for non-browser UAs.
+    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
   }
 }
 
@@ -36,8 +38,12 @@ async function fetchTelegramHtml({ host, channel, id, before, after, q, headers 
     },
     responseType: 'text',
     timeout: 15000,
-    retry: 3,
-    retryDelay: 100,
+    // Cap retries and back off exponentially so a transient Telegram error
+    // doesn't hammer the shared Worker egress IP (which would trigger rate
+    // limits / temporary blocks). Also retry on 429/5xx with backoff.
+    retry: 2,
+    retryDelay: (attempt: number) => Math.min(2 ** attempt * 400, 3000),
+    retryStatusCodes: [429, 500, 502, 503, 504],
   })
 }
 
