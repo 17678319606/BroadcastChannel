@@ -59,6 +59,11 @@ function formatAbsoluteTime(date: Date, timezone: string | undefined, locale: st
 export function formatPostTime(datetime: string, timezone?: string, locale?: string): string {
   const resolvedLocale = resolveLocale(locale)
   const postTime = new Date(datetime)
+  // Guard against empty/invalid datetimes (`extractPost` can yield `''`):
+  // return an empty string rather than "Invalid Date" in the UI.
+  if (Number.isNaN(postTime.getTime())) {
+    return ''
+  }
   const isOlderThanWeek = postTime.getTime() < Date.now() - weekInMs
 
   return isOlderThanWeek
