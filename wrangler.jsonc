@@ -19,6 +19,6 @@
     "directory": "./dist/client"
   },
   "kv_namespaces": [
-    { "binding": "FEED_CACHE", "id": "PASTE_FEED_CACHE_ID_HERE" }
+    { "binding": "FEED_CACHE", "id": "d3ee3b3289b44306a98b80d9096fa0f1" }
   ]
 }
