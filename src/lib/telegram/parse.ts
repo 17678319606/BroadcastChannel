@@ -127,7 +127,9 @@ export async function extractPost($: CheerioAPI, item: AnyNode | null, options: 
   )
   const contentText = content.text()
   const title = contentText.trim().match(TITLE_PREVIEW_REGEX)?.[0] ?? contentText.trim()
-  const id = message.attr('data-post')?.replace(new RegExp(`${channel}/`, 'i'), '') ?? ''
+  // Strip the `channel/` prefix with a LITERAL string replace (not a regex),
+  // so a channel name containing regex metacharacters can never break parsing.
+  const id = message.attr('data-post')?.replace(`${channel}/`, '') ?? ''
   // A short, whitespace-collapsed excerpt for meta/OG descriptions and JSON-LD.
   // Strips a leading title occurrence so the description doesn't duplicate the
   // <title>, then truncates to a search-engine-friendly length.
