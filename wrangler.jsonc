@@ -1,7 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "123yunpan",
-  "main": "@astrojs/cloudflare/entrypoints/server",
+  "main": "./node_modules/@astrojs/cloudflare/dist/entrypoints/server.js",
   "compatibility_date": "2026-06-13",
   "compatibility_flags": [
     "nodejs_compat"
