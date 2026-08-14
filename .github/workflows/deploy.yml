@@ -68,33 +68,19 @@ jobs:
 
       - name: Deploy worker (123yunpan)
         run: |
-          python3 - <<'PY'
-          import os
-          p = 'wrangler.jsonc'
-          s = open(p, encoding='utf-8').read()
-          fid = os.environ.get('FEED_123', '').strip()
-          assert fid, "FEED_123 id is empty - KV namespace resolution failed"
-          assert 'PASTE_FEED_CACHE_ID_HERE' in s, "placeholder not found in wrangler.jsonc"
-          s = s.replace('PASTE_FEED_CACHE_ID_HERE', fid)
-          open(p, 'w', encoding='utf-8').write(s)
-          assert 'PASTE_FEED_CACHE_ID_HERE' not in s, "patching FAILED"
-          print('wrangler.jsonc patched with 123yunpan FEED_CACHE id:', fid)
-          PY
+          echo "FEED_123=$FEED_123"
+          sed -i "s/PASTE_FEED_CACHE_ID_HERE/$FEED_123/g" wrangler.jsonc
+          echo "--- wrangler.jsonc after patch (FEED_CACHE line) ---"
+          grep -n "FEED_CACHE" wrangler.jsonc
+          grep -q "$FEED_123" wrangler.jsonc || { echo "PATCH FAILED"; exit 1; }
           pnpm exec wrangler deploy
 
       - name: Deploy worker (zhongnianren)
         run: |
           git checkout -- wrangler.jsonc || true
-          python3 - <<'PY'
-          import os
-          p = 'wrangler.jsonc'
-          s = open(p, encoding='utf-8').read()
-          fid = os.environ.get('FEED_ZN', '').strip()
-          assert fid, "FEED_ZN id is empty - KV namespace resolution failed"
-          assert 'PASTE_FEED_CACHE_ID_HERE' in s, "placeholder not found in wrangler.jsonc"
-          s = s.replace('PASTE_FEED_CACHE_ID_HERE', fid)
-          open(p, 'w', encoding='utf-8').write(s)
-          assert 'PASTE_FEED_CACHE_ID_HERE' not in s, "patching FAILED"
-          print('wrangler.jsonc patched with zhongnianren FEED_CACHE id:', fid)
-          PY
+          echo "FEED_ZN=$FEED_ZN"
+          sed -i "s/PASTE_FEED_CACHE_ID_HERE/$FEED_ZN/g" wrangler.jsonc
+          echo "--- wrangler.jsonc after patch (FEED_CACHE line) ---"
+          grep -n "FEED_CACHE" wrangler.jsonc
+          grep -q "$FEED_ZN" wrangler.jsonc || { echo "PATCH FAILED"; exit 1; }
           pnpm exec wrangler deploy --name zhongnianren
