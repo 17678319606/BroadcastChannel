@@ -7,7 +7,6 @@ const DEFAULT_TARGET_WHITELIST = [
   'telegram.dog',
   'cdn-telegram.org',
   'telesco.pe',
-  'yandex.ru',
 ]
 
 const FORWARDED_REQUEST_HEADERS = new Set([
@@ -70,5 +69,18 @@ export async function createStaticProxyResponse(request: Request, rawTarget: str
     return new Response('Upstream fetch failed', { status: 502 })
   }
 
-  return new Response(response.body, response)
+  // Copy upstream headers but strip response-shaping / cookie headers so the
+  // proxy can't reflect a third-party `set-cookie` onto our origin domain or
+  // double-decode a transferred body.
+  const headers = new Headers(response.headers)
+  headers.delete('set-cookie')
+  headers.delete('set-cookie2')
+  headers.delete('transfer-encoding')
+  headers.delete('content-encoding')
+
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  })
 }
