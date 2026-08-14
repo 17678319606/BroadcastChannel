@@ -1,7 +1,7 @@
 ---
 import PostsPage from '../../components/PostsPage.astro'
 import NotFound from '../../components/NotFound.astro'
-import { getChannelInfoCached, getChannelPost, getPostContext } from '../../lib/telegram'
+import { getChannelInfoCached, getChannelPostCached, getPostContextCached } from '../../lib/telegram'
 import { getKVBinding } from '../../lib/cloudflare'
 
 if (!Astro.params.id) {
@@ -11,17 +11,24 @@ if (!Astro.params.id) {
 const kv = getKVBinding()
 const siteInfo = await getChannelInfoCached({}, kv)
 
-// Fresh, accurate post + navigation context (prev/next/related). Always fetched
-// so the latest parsing (link restoration, ad filtering) is applied.
-let context = await getPostContext(Astro.params.id)
+// Cached, resilient post + navigation context (prev/next/related). The cache
+// sits behind KV and serves a stale copy if Telegram is slow/down, so a detail
+// page never 500s just because the upstream blinked. Falls back to an empty
+// context on total failure (post then resolved via the cached feed / cached
+// single-post lookup below).
+const EMPTY_CONTEXT = { post: null, prev: null, next: null, related: [] }
+let context = await getPostContextCached(Astro.params.id, kv).catch(() => EMPTY_CONTEXT)
 let post = context.post
 
-// Resilience: if the upstream Telegram fetch hiccups (rate-limited / slow),
-// fall back to the cached aggregate feed — then a single fresh fetch — so a
-// detail page never 404s just because Telegram blinked. Navigation may be
-// absent in that fallback, but the article still renders.
+// Resilience chain (defense in depth):
+//  1. cached detail context (KV, stale-while-error)
+//  2. the cached aggregate "latest" feed (already in siteInfo)
+//  3. a cached single-post fetch (KV, stale-while-error)
+// Navigation may be absent in the fallback, but the article still renders
+// instead of 404ing on a transient upstream error.
 if (!post) {
-  post = siteInfo.posts.find((item) => item.id === Astro.params.id) ?? (await getChannelPost(Astro.params.id))
+  post = siteInfo.posts.find((item) => item.id === Astro.params.id)
+    ?? (await getChannelPostCached(Astro.params.id, kv).catch(() => null))
   if (post) {
     context = { post, prev: null, next: null, related: [] }
   }
