@@ -1,7 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "123yunpan",
-  // Astro @astrojs/cloudflare v14 entrypoint (the Vite plugin bundles it into dist/server at build time).
   "main": "@astrojs/cloudflare/entrypoints/server",
   "compatibility_date": "2026-06-13",
   "compatibility_flags": [
@@ -9,7 +8,8 @@
   ],
   "keep_vars": true,
   "observability": {
-    "enabled": true
+    "enabled": true,
+    "head_sampling_rate": 0.1
   },
   "cache": {
     "enabled": true
@@ -17,30 +17,8 @@
   "assets": {
     "binding": "ASSETS",
     "directory": "./dist/client"
-  }
-  // --- Optional: Cloudflare KV feed cache (FREE on the Workers free tier) ---
-  // Uncomment and paste the namespace id after creating it once with:
-  //   pnpm exec wrangler kv namespace create FEED_CACHE
-  // The app caches the aggregated feed here to cut upstream Telegram fetches and
-  // survive brief outages. Without this binding an in-memory fallback is used.
-  //
-  // "kv_namespaces": [
-  //   { "binding": "FEED_CACHE", "id": "PASTE_YOUR_NAMESPACE_ID_HERE" }
-  // ],
-  //
-  // --- Runtime variables (non-secret) ---
-  // Plaintext vars here are exposed to the app at runtime and are fine for public
-  // config like channel names. For anything sensitive, use `wrangler secret put`
-  // (or the Workers dashboard) instead — those are encrypted and not stored in this file.
-  // `keep_vars: true` above means dashboard/secret values are preserved across deploys.
-  //
-  // "vars": {
-  //   "CHANNELS": "miantiao_me,durov",
-  //   "SITE_TITLE": "",
-  //   "SITE_DESCRIPTION": "",
-  //   "LOCALE": "zh-CN",
-  //   "TIMEZONE": "Asia/Shanghai",
-  //   "PAGE_SIZE": "30",
-  //   "FEED_CACHE_TTL": "300"
-  // }
+  },
+  "kv_namespaces": [
+    { "binding": "FEED_CACHE", "id": "PASTE_FEED_CACHE_ID_HERE" }
+  ]
 }
