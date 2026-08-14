@@ -34,14 +34,19 @@ jobs:
         env:
           SERVER_ADAPTER: cloudflare_workers
 
-      # Each worker has its OWN wrangler config with a hardcoded (non-secret)
-      # FEED_CACHE KV namespace id. We deploy with an explicit --config so
-      # wrangler can never auto-discover the wrong file. No sed, no runtime
-      # KV resolution — the ids are committed directly.
+      # IMPORTANT: wrangler 4.x fails to resolve a bare-specifier `main`
+      # (e.g. "@astrojs/cloudflare/entrypoints/server") when --config is
+      # passed — it then treats it as a relative file path and cannot find it
+      # under pnpm's symlinked node_modules. Auto-discovery (no --config)
+      # resolves it correctly via Node module resolution, so we deploy by
+      # auto-discovering the default wrangler.jsonc. For the second worker we
+      # swap in wrangler.zn.jsonc as the default config before deploying.
+      # No sed, no runtime KV resolution — the ids are committed directly.
       - name: Deploy worker (123yunpan)
         run: |
-          pnpm exec wrangler deploy --config "$(pwd)/wrangler.jsonc"
+          pnpm exec wrangler deploy
 
       - name: Deploy worker (zhongnianren)
         run: |
-          pnpm exec wrangler deploy --config "$(pwd)/wrangler.zn.jsonc"
+          cp wrangler.zn.jsonc wrangler.jsonc
+          pnpm exec wrangler deploy
