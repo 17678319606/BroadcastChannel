@@ -1,0 +1,23 @@
+name: Daily Warmup (force content refresh before 18:00 Beijing)
+
+on:
+  schedule:
+    - cron: '55 1 * * *'   # 09:55 Beijing
+    - cron: '55 9 * * *'   # 17:55 Beijing (before 18:00)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  warmup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Warm 123yunpan
+        run: |
+          curl -s -o /dev/null -w "123yunpan home: %{http_code}\n" -H "Cache-Control: no-cache" "https://123yunpan.lixuehanwork.workers.dev/"
+          curl -s -o /dev/null -w "123yunpan rss:  %{http_code}\n" -H "Cache-Control: no-cache" "https://123yunpan.lixuehanwork.workers.dev/rss.json"
+      - name: Warm zhongnianren
+        run: |
+          curl -s -o /dev/null -w "zhongnianren home: %{http_code}\n" -H "Cache-Control: no-cache" "https://zhongnianren.lixuehanwork.workers.dev/"
+          curl -s -o /dev/null -w "zhongnianren rss:  %{http_code}\n" -H "Cache-Control: no-cache" "https://zhongnianren.lixuehanwork.workers.dev/rss.json"
