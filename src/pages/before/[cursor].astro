@@ -2,11 +2,15 @@
 import PostsPage from '../../components/PostsPage.astro'
 import { decodeCursorMap, getChannelInfoCached } from '../../lib/telegram'
 import { getKVBinding } from '../../lib/cloudflare'
-import type { SeoMeta } from '../../types'
+import type { ChannelInfo, SeoMeta } from '../../types'
 
 // Decode the cursor safely — malformed cursors fall back to {} (latest page).
 const decodedCursor = decodeCursorMap(Astro.params.cursor)
+// The cursor feed is cached with stale-while-error; on a total upstream failure
+// with no cached value this resolves to an empty feed, which the check below
+// turns into a graceful redirect home (never a 500).
 const channel = await getChannelInfoCached({ before: decodedCursor }, getKVBinding())
+  .catch(() => ({ posts: [] } as ChannelInfo))
 const pageParam = Math.max(1, Number(Astro.url.searchParams.get('p')) || 1)
 const pageSeo: SeoMeta = {
   noindex: true,
