@@ -25,6 +25,7 @@ export async function withFeedCache<T>(
   ttlSeconds: number,
   kv: KVNamespaceLike | undefined,
   compute: () => Promise<T>,
+  options?: { shouldCache?: (value: T) => boolean },
 ): Promise<T> {
   const now = Date.now()
   const ttlMs = ttlSeconds * 1000
@@ -60,15 +61,22 @@ export async function withFeedCache<T>(
 
   try {
     const value = await compute()
-    if (kv) {
-      try {
-        await kv.put(key, JSON.stringify({ cachedAt: now, ttlMs, value }), { expirationTtl: ttlSeconds + 120 })
+    // Skip caching when the caller says the result isn't worth persisting
+    // (e.g. a null post or an empty paginated page). This keeps free-tier KV
+    // writes focused on useful results and avoids poisoning the cache with
+    // empty/null values that would mask a later successful fetch.
+    const shouldCache = options?.shouldCache ? options.shouldCache(value) : true
+    if (shouldCache) {
+      if (kv) {
+        try {
+          await kv.put(key, JSON.stringify({ cachedAt: now, ttlMs, value }), { expirationTtl: ttlSeconds + 120 })
+        }
+        catch {
+          // Write over quota or binding missing — non-fatal.
+        }
       }
-      catch {
-        // Write over quota or binding missing — non-fatal.
-      }
+      memStore.set(key, { cachedAt: now, ttlMs: Math.min(ttlMs, MEM_TTL_MS), value })
     }
-    memStore.set(key, { cachedAt: now, ttlMs: Math.min(ttlMs, MEM_TTL_MS), value })
     return value
   }
   catch (err) {
