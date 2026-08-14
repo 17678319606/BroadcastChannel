@@ -29,25 +29,32 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build (Astro → Cloudflare Workers bundle)
-        run: pnpm build
+      # Build + deploy each worker as a self-contained unit.
+      #
+      # IMPORTANT constraints discovered the hard way:
+      # 1. `main` MUST stay the bare specifier "@astrojs/cloudflare/entrypoints/server".
+      #    Pointing it at the adapter file directly breaks Astro's virtual modules
+      #    (virtual:astro-cloudflare:config, etc.). Auto-discovery (no --config)
+      #    resolves that bare specifier via Node module resolution, which works
+      #    under pnpm's symlinked node_modules. Passing --config makes wrangler
+      #    treat the bare specifier as a relative file path and fail.
+      # 2. The @astrojs/cloudflare adapter BAKEs the worker name from wrangler.jsonc
+      #    at BUILD time, so we must `cp` the per-worker config into wrangler.jsonc
+      #    and BUILD before deploying each worker. Otherwise the 2nd deploy reuses
+      #    the 1st build's baked name.
+      # 3. Each worker's FEED_CACHE KV id is hardcoded in its own config file — no
+      #    sed, no runtime KV resolution.
+      - name: Deploy worker (123yunpan)
+        run: |
+          pnpm build
+          pnpm exec wrangler deploy --name 123yunpan
         env:
           SERVER_ADAPTER: cloudflare_workers
 
-      # Each worker has its OWN config file with a hardcoded (non-secret)
-      # FEED_CACHE KV namespace id. We deploy with an explicit --config so
-      # wrangler uses exactly the intended file (correct name + KV id) — no
-      # auto-discovery ambiguity, no runtime sed.
-      #
-      # `main` is an EXPLICIT relative file path (not a bare module specifier)
-      # because wrangler 4.x, when --config is passed, otherwise fails to
-      # resolve a bare specifier like "@astrojs/cloudflare/entrypoints/server"
-      # under pnpm's symlinked node_modules. The explicit path points at the
-      # same adapter entrypoint and bundles identically.
-      - name: Deploy worker (123yunpan)
-        run: |
-          pnpm exec wrangler deploy --config "$(pwd)/wrangler.jsonc"
-
       - name: Deploy worker (zhongnianren)
         run: |
-          pnpm exec wrangler deploy --config "$(pwd)/wrangler.zn.jsonc"
+          cp wrangler.zn.jsonc wrangler.jsonc
+          pnpm build
+          pnpm exec wrangler deploy --name zhongnianren
+        env:
+          SERVER_ADAPTER: cloudflare_workers
