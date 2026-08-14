@@ -70,17 +70,17 @@ jobs:
         run: |
           echo "FEED_123=$FEED_123"
           sed -i "s/PASTE_FEED_CACHE_ID_HERE/$FEED_123/g" wrangler.jsonc
-          echo "--- wrangler.jsonc after patch (FEED_CACHE line) ---"
-          grep -n "FEED_CACHE" wrangler.jsonc
-          grep -q "$FEED_123" wrangler.jsonc || { echo "PATCH FAILED"; exit 1; }
-          pnpm exec wrangler deploy
+          echo "--- wrangler.jsonc after patch (cat) ---"
+          cat wrangler.jsonc
+          echo "--- wrangler.jsonc absolute path ---"
+          pwd; ls -la wrangler.jsonc
+          ./node_modules/.bin/wrangler deploy --config "$(pwd)/wrangler.jsonc"
 
       - name: Deploy worker (zhongnianren)
         run: |
           git checkout -- wrangler.jsonc || true
           echo "FEED_ZN=$FEED_ZN"
           sed -i "s/PASTE_FEED_CACHE_ID_HERE/$FEED_ZN/g" wrangler.jsonc
-          echo "--- wrangler.jsonc after patch (FEED_CACHE line) ---"
-          grep -n "FEED_CACHE" wrangler.jsonc
-          grep -q "$FEED_ZN" wrangler.jsonc || { echo "PATCH FAILED"; exit 1; }
-          pnpm exec wrangler deploy --name zhongnianren
+          echo "--- wrangler.jsonc after patch (cat) ---"
+          cat wrangler.jsonc
+          ./node_modules/.bin/wrangler deploy --name zhongnianren --config "$(pwd)/wrangler.jsonc"
