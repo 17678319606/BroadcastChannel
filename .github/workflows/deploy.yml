@@ -40,8 +40,8 @@ jobs:
       # KV resolution — the ids are committed directly.
       - name: Deploy worker (123yunpan)
         run: |
-          ./node_modules/.bin/wrangler deploy --config "$(pwd)/wrangler.jsonc"
+          pnpm exec wrangler deploy --config "$(pwd)/wrangler.jsonc"
 
       - name: Deploy worker (zhongnianren)
         run: |
-          ./node_modules/.bin/wrangler deploy --config "$(pwd)/wrangler.zn.jsonc"
+          pnpm exec wrangler deploy --config "$(pwd)/wrangler.zn.jsonc"
