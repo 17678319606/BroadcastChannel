@@ -1,7 +1,7 @@
 import type { AggregatedChannelInfoParams, ChannelCursorMap, ChannelInfo, GetChannelInfoParams, Post } from '../../types'
 import type { KVNamespaceLike } from '../cloudflare'
 import { withFeedCache } from '../cache/feedCache'
-import { getBooleanEnv, getChannelList, getEnv, getFeedCacheTtl, getPrimaryChannel } from '../env'
+import { getBooleanEnv, getChannelList, getDetailCacheTtl, getEnv, getFeedCacheTtl, getPrimaryChannel } from '../env'
 import { isBlockedContent } from '../safety'
 import { modifyHTMLContent } from './content'
 import { extractPost } from './parse'
@@ -286,28 +286,76 @@ export function buildChannelCursor(posts: Post[], mode: 'before' | 'after'): Cha
 }
 
 /**
+ * Empty feed returned when upstream is unavailable and no cached value exists,
+ * so callers render a blank (or redirect-to-home) page instead of throwing a 500.
+ */
+function emptyChannelInfo(): ChannelInfo {
+  const siteTitle = getEnv(import.meta.env, 'SITE_TITLE') || ''
+  return { posts: [], title: siteTitle, description: '', descriptionHTML: null, avatar: undefined }
+}
+
+/**
+ * Cached single-post lookup with stale-while-error.
+ *
+ * Detail pages for posts OUTSIDE the cached "latest" window previously hit
+ * Telegram directly (via getChannelPost) with no fallback, so an upstream
+ * hiccup turned a deep-linked old post into a 500. Caching the result in KV
+ * (per post id) plus serving a stale copy on failure keeps every post
+ * reachable even when Telegram is slow/down. Null results are never written to
+ * the cache — there's no point, and it would waste free-tier KV writes.
+ */
+export async function getChannelPostCached(id: string, kv?: KVNamespaceLike): Promise<Post | null> {
+  const ttl = getDetailCacheTtl(import.meta.env)
+  return withFeedCache(`post:v2:${id}`, ttl, kv, () => getChannelPost(id), {
+    shouldCache: post => post !== null,
+  })
+}
+
+/**
+ * Cached post detail context (post + prev/next/related) with stale-while-error.
+ * Mirrors getChannelPostCached's rationale: the two-window fetch behind a detail
+ * page is expensive and upstream-dependent, so cache it per post id and fall
+ * back to a stale copy when Telegram blinks. Contexts without a resolved post
+ * are never cached.
+ */
+export async function getPostContextCached(id: string, kv?: KVNamespaceLike) {
+  const ttl = getDetailCacheTtl(import.meta.env)
+  return withFeedCache(`postctx:v2:${id}`, ttl, kv, () => getPostContext(id), {
+    shouldCache: ctx => ctx.post !== null,
+  })
+}
+
+/**
  * Cached variant of {@link getChannelInfo}.
  *
- * Only the "latest" feed (no before/after cursor) is cached — cursor pagination is
- * infrequent and caching it would multiply KV writes past the free-tier daily limit.
- * When a cursor is present, this forwards straight to getChannelInfo().
+ * - The "latest" feed (no before/after cursor) is cached under a coarse key.
+ * - Cursor pages (before/after) are ALSO cached now, but only when they return
+ *   non-empty results — so a stale paginated view survives an upstream blip
+ *   (instead of dumping the visitor back to home) and we never waste KV writes
+ *   on empty results. This keeps the "load older / newer" navigation working
+ *   even when Telegram is unavailable, well within the free-tier daily write budget.
+ * - On total upstream failure with no cached value, an empty feed is returned
+ *   (callers render blank / redirect) rather than throwing a 500.
  *
- * The cache sits behind Cloudflare KV when the `FEED_CACHE` binding is configured,
- * and falls back to an in-memory store otherwise. On upstream failure it serves a
- * slightly stale value (stale-while-error) so the site stays up.
+ * The cache sits behind Cloudflare KV when the `FEED_CACHE` binding is
+ * configured, and falls back to an in-memory store otherwise. On upstream
+ * failure it serves a slightly stale value (stale-while-error) so the site
+ * stays up.
  */
 export async function getChannelInfoCached(
   params: AggregatedChannelInfoParams = {},
   kv?: KVNamespaceLike,
 ): Promise<ChannelInfo> {
+  const channels = getChannelList(import.meta.env)
+  const ttl = getFeedCacheTtl(import.meta.env)
   const hasCursor = (params.before && Object.keys(params.before).length > 0)
     || (params.after && Object.keys(params.after).length > 0)
-  if (hasCursor) {
-    return getChannelInfo(params)
-  }
 
-  const channels = getChannelList(import.meta.env)
-  const key = `feed:v2:${channels.join(',')}:${params.q ?? ''}`
-  const ttl = getFeedCacheTtl(import.meta.env)
-  return withFeedCache(key, ttl, kv, () => getChannelInfo(params))
+  const key = hasCursor
+    ? `feed:cursor:v2:${channels.join(',')}:${JSON.stringify(params.before ?? {})}:${JSON.stringify(params.after ?? {})}:${params.q ?? ''}`
+    : `feed:v2:${channels.join(',')}:${params.q ?? ''}`
+
+  return withFeedCache(key, ttl, kv, () => getChannelInfo(params), {
+    shouldCache: info => info.posts.length > 0,
+  }).catch(() => emptyChannelInfo())
 }
