@@ -1,8 +1,5 @@
 name: Deploy to Cloudflare Workers
 
-# Manual trigger only — run from the Actions tab after setting the two secrets
-# below (Settings → Secrets and variables → Actions). No auto-deploy on push,
-# to avoid surprising redeploys.
 on:
   workflow_dispatch:
 
@@ -30,29 +27,55 @@ jobs:
         env:
           SERVER_ADAPTER: cloudflare_workers
 
+      - name: Ensure FEED_CACHE KV namespace exists
+        id: kv
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -e
+          list_json=$(pnpm exec wrangler kv namespace list --json)
+          id=$(echo "$list_json" | python3 -c "import sys,json; d=json.load(sys.stdin); print(next((x.get('id') for x in d if x.get('title')=='FEED_CACHE' or x.get('name')=='FEED_CACHE'), ''))")
+          if [ -z "$id" ]; then
+            out=$(pnpm exec wrangler kv namespace create FEED_CACHE 2>&1) || true
+            if ! echo "$out" | grep -q 'id = "'; then
+              list_json2=$(pnpm exec wrangler kv namespace list --json)
+              id=$(echo "$list_json2" | python3 -c "import sys,json; d=json.load(sys.stdin); print(next((x.get('id') for x in d if x.get('title')=='FEED_CACHE' or x.get('name')=='FEED_CACHE'), ''))")
+            else
+              id=$(echo "$out" | grep -oE 'id = "[a-f0-9]+"' | head -1 | sed 's/id = "//; s/"//')
+            fi
+          fi
+          echo "FEED_CACHE_ID=$id" >> "$GITHUB_OUTPUT"
+          echo "Using FEED_CACHE id: $id"
+
+      - name: Inject KV namespace id into wrangler.jsonc
+        env:
+          FEED_CACHE_ID: ${{ steps.kv.outputs.FEED_CACHE_ID }}
+        run: |
+          python3 - <<'PY'
+          import os, re
+          p = 'wrangler.jsonc'
+          s = open(p, encoding='utf-8').read()
+          s = s.replace('PASTE_FEED_CACHE_ID_HERE', os.environ['FEED_CACHE_ID'])
+          open(p, 'w', encoding='utf-8').write(s)
+          print('wrangler.jsonc patched with KV id')
+          PY
+
       - name: Push GH_DISPATCH_TOKEN to Cloudflare secret
-        # The active-push feature reads this at runtime. Stored encrypted in
-        # Cloudflare; never printed. Value comes from the GitHub repo secret
-        # GH_DISPATCH_TOKEN (set it to a GitHub PAT with repo + actions scope
-        # for the snapshot repo).
-        run: echo "${{ secrets.GH_DISPATCH_TOKEN }}" | npx wrangler secret put GH_DISPATCH_TOKEN
+        if: ${{ secrets.GH_DISPATCH_TOKEN != '' }}
+        run: echo "${{ secrets.GH_DISPATCH_TOKEN }}" | pnpm exec wrangler secret put GH_DISPATCH_TOKEN
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       - name: Deploy worker (123yunpan)
-        # Deploys the worker defined in wrangler.jsonc. keep_vars:true preserves
-        # the dashboard-set CHANNELS var, so no config is lost.
-        run: npx wrangler deploy
+        run: pnpm exec wrangler deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-      # --- To also enable active push for the 2nd worker (zhongnianren):
-      # 1. uncomment the step below and fill in its CHANNELS value
-      # 2. (its GH_DISPATCH_TOKEN secret is shared via the same Cloudflare account)
-      # - name: Deploy worker (zhongnianren)
-      #   run: npx wrangler deploy --name zhongnianren --var CHANNELS="<填写zhongnianren的频道列表>"
-      #   env:
-      #     CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      #     CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Deploy worker (zhongnianren)
+        run: pnpm exec wrangler deploy --name zhongnianren
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
