@@ -50,6 +50,24 @@ export function getFeedCacheTtl(env: Env | undefined): number {
 }
 
 /**
+ * TTL (seconds) for per-post detail caches (single post + its prev/next/related
+ * context). Posts are immutable once published, so this intentionally defaults
+ * to a longer window (600s) than the rolling feed cache — fewer KV writes on the
+ * free tier while still recovering quickly after a code/parse change.
+ */
+export function getDetailCacheTtl(env: Env | undefined): number {
+  const raw = getEnv(env, 'DETAIL_CACHE_TTL')
+  if (raw === undefined) {
+    return 600
+  }
+  const parsed = Number.parseInt(raw, 10)
+  if (!Number.isFinite(parsed)) {
+    return 600
+  }
+  return Math.min(3600, Math.max(60, parsed))
+}
+
+/**
  * Normalize a raw channel value into the bare Telegram username.
  * Accepts `t.me/foo`, `https://t.me/s/foo`, `foo/`, leading/trailing whitespace, etc.
  */
