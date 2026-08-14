@@ -34,53 +34,14 @@ jobs:
         env:
           SERVER_ADAPTER: cloudflare_workers
 
-      # Idempotently resolve ONE FEED_CACHE KV namespace PER worker via the
-      # Cloudflare REST API (avoids wrangler CLI JSON-flag quirks). The two
-      # workers aggregate different channel sets, so they must NOT share a
-      # single cache key space — hence separate namespaces.
-      - name: Resolve FEED_CACHE KV namespaces (one per worker)
-        id: kv
-        run: |
-          list_ns() {
-            curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-              "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/storage/kv/namespaces?per_page=100" \
-              | python3 -c "import sys,json; d=json.load(sys.stdin); print(next((x['id'] for x in d.get('result',[]) if x.get('title')=='$1'),''))"
-          }
-          create_ns() {
-            curl -s -X POST -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" \
-              -d "{\"title\":\"$1\"}" \
-              "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/storage/kv/namespaces" \
-              | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('result',{}).get('id',''))"
-          }
-          ensure() {
-            local id; id=$(list_ns "$1")
-            if [ -z "$id" ]; then id=$(create_ns "$1"); fi
-            echo "$id"
-          }
-          F123=$(ensure bc-feed-123yunpan)
-          FZN=$(ensure bc-feed-zhongnianren)
-          {
-            echo "FEED_123=$F123"
-            echo "FEED_ZN=$FZN"
-          } >> "$GITHUB_ENV"
-          echo "FEED_123=$F123"
-          echo "FEED_ZN=$FZN"
-
+      # Each worker has its OWN wrangler config with a hardcoded (non-secret)
+      # FEED_CACHE KV namespace id. We deploy with an explicit --config so
+      # wrangler can never auto-discover the wrong file. No sed, no runtime
+      # KV resolution — the ids are committed directly.
       - name: Deploy worker (123yunpan)
         run: |
-          echo "FEED_123=$FEED_123"
-          sed -i "s/PASTE_FEED_CACHE_ID_HERE/$FEED_123/g" wrangler.jsonc
-          echo "--- wrangler.jsonc after patch (cat) ---"
-          cat wrangler.jsonc
-          echo "--- wrangler.jsonc absolute path ---"
-          pwd; ls -la wrangler.jsonc
           ./node_modules/.bin/wrangler deploy --config "$(pwd)/wrangler.jsonc"
 
       - name: Deploy worker (zhongnianren)
         run: |
-          git checkout -- wrangler.jsonc || true
-          echo "FEED_ZN=$FEED_ZN"
-          sed -i "s/PASTE_FEED_CACHE_ID_HERE/$FEED_ZN/g" wrangler.jsonc
-          echo "--- wrangler.jsonc after patch (cat) ---"
-          cat wrangler.jsonc
-          ./node_modules/.bin/wrangler deploy --name zhongnianren --config "$(pwd)/wrangler.jsonc"
+          ./node_modules/.bin/wrangler deploy --config "$(pwd)/wrangler.zn.jsonc"
