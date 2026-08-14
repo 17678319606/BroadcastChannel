@@ -34,27 +34,37 @@ jobs:
         env:
           SERVER_ADAPTER: cloudflare_workers
 
-      # Idempotently ensure one FEED_CACHE KV namespace PER worker so the two
-      # different channel sets never share/cross-contaminate a cache key.
-      - name: Ensure FEED_CACHE KV namespaces (one per worker)
+      # Idempotently resolve ONE FEED_CACHE KV namespace PER worker via the
+      # Cloudflare REST API (avoids wrangler CLI JSON-flag quirks). The two
+      # workers aggregate different channel sets, so they must NOT share a
+      # single cache key space — hence separate namespaces.
+      - name: Resolve FEED_CACHE KV namespaces (one per worker)
         id: kv
         run: |
-          set -e
+          list_ns() {
+            curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+              "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/storage/kv/namespaces?per_page=100" \
+              | python3 -c "import sys,json; d=json.load(sys.stdin); print(next((x['id'] for x in d.get('result',[]) if x.get('title')=='$1'),''))"
+          }
+          create_ns() {
+            curl -s -X POST -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" \
+              -d "{\"title\":\"$1\"}" \
+              "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/storage/kv/namespaces" \
+              | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('result',{}).get('id',''))"
+          }
           ensure() {
-            local title="$1"
-            local id
-            id=$(pnpm exec wrangler kv namespace list --json \
-              | python3 -c "import sys,json; d=json.load(sys.stdin); print(next((x['id'] for x in d if x.get('title')=='$title'),''))")
-            if [ -z "$id" ]; then
-              id=$(pnpm exec wrangler kv namespace create "$title" \
-                | grep -oE 'id = "[a-f0-9]+"' | head -1 | sed 's/id = "//; s/"//')
-            fi
+            local id; id=$(list_ns "$1")
+            if [ -z "$id" ]; then id=$(create_ns "$1"); fi
             echo "$id"
           }
-          echo "FEED_123=$(ensure bc-feed-123yunpan)" >> "$GITHUB_OUTPUT"
-          echo "FEED_ZN=$(ensure bc-feed-zhongnianren)" >> "$GITHUB_OUTPUT"
-          echo "FEED_123=$(ensure bc-feed-123yunpan)"
-          echo "FEED_ZN=$(ensure bc-feed-zhongnianren)"
+          F123=$(ensure bc-feed-123yunpan)
+          FZN=$(ensure bc-feed-zhongnianren)
+          {
+            echo "FEED_123=$F123"
+            echo "FEED_ZN=$FZN"
+          } >> "$GITHUB_ENV"
+          echo "FEED_123=$F123"
+          echo "FEED_ZN=$FZN"
 
       - name: Deploy worker (123yunpan)
         run: |
@@ -62,10 +72,12 @@ jobs:
           import os, re
           p = 'wrangler.jsonc'
           s = open(p, encoding='utf-8').read()
+          fid = os.environ.get('FEED_123', '')
+          assert fid, "FEED_123 id is empty - KV namespace resolution failed"
           s = re.sub(r'("binding":\s*"FEED_CACHE",\s*"id":\s*")[^"]*(")',
-                     r'\g<1>' + os.environ['FEED_123'] + r'\g<2>', s)
+                     r'\g<1>' + fid + r'\g<2>', s)
           open(p, 'w', encoding='utf-8').write(s)
-          print('wrangler.jsonc patched with 123yunpan FEED_CACHE id')
+          print('wrangler.jsonc patched with 123yunpan FEED_CACHE id:', fid)
           PY
           pnpm exec wrangler deploy
 
@@ -75,9 +87,11 @@ jobs:
           import os, re
           p = 'wrangler.jsonc'
           s = open(p, encoding='utf-8').read()
+          fid = os.environ.get('FEED_ZN', '')
+          assert fid, "FEED_ZN id is empty - KV namespace resolution failed"
           s = re.sub(r'("binding":\s*"FEED_CACHE",\s*"id":\s*")[^"]*(")',
-                     r'\g<1>' + os.environ['FEED_ZN'] + r'\g<2>', s)
+                     r'\g<1>' + fid + r'\g<2>', s)
           open(p, 'w', encoding='utf-8').write(s)
-          print('wrangler.jsonc patched with zhongnianren FEED_CACHE id')
+          print('wrangler.jsonc patched with zhongnianren FEED_CACHE id:', fid)
           PY
           pnpm exec wrangler deploy --name zhongnianren
